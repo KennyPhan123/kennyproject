@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chat Interface</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; display: flex; height: 100vh; overflow: hidden; }
+        #sidebar { width: 250px; background-color: #f0f0f0; padding: 20px; overflow-y: auto; transition: width 0.3s; }
+        #sidebar.hidden { width: 0; padding: 0; overflow: hidden; }
+        #main-content { flex-grow: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        #header { padding: 20px; }
+        #config-section { padding: 0 20px; max-height: 200px; overflow-y: auto; transition: max-height 0.3s, opacity 0.3s; opacity: 1; }
+        #config-section.hidden { max-height: 0; opacity: 0; overflow: hidden; }
+        #chat-area { display: flex; flex-direction: column; flex-grow: 1; overflow: hidden; padding: 0 20px 20px; }
+        #chat-container { flex-grow: 1; border: 1px solid #ccc; overflow-y: auto; padding: 10px; margin-bottom: 10px; }
+        input, select, button, textarea { margin-bottom: 10px; padding: 5px; }
+        #api-key, #model, #system-prompt { width: 100%; }
+        #user-input { width: 100%; height: 60px; resize: vertical; }
+        .settings { display: flex; justify-content: space-between; }
+        .settings input { width: 45%; }
+        .conversation-item { cursor: pointer; padding: 5px; margin-bottom: 5px; background-color: #e0e0e0; display: flex; justify-content: space-between; align-items: center; }
+        .conversation-item:hover { background-color: #d0d0d0; }
+        .conversation-name { flex-grow: 1; }
+        .message { margin-bottom: 10px; }
+        .message pre { white-space: pre-wrap; word-wrap: break-word; }
+        .copy-btn, .regenerate-btn { margin-left: 10px; cursor: pointer; }
+        .conversation-actions { display: none; }
+        .conversation-item:hover .conversation-actions { display: block; }
+        #toggle-buttons { position: fixed; top: 10px; right: 10px; }
+        #toggle-buttons button { margin-left: 5px; }
+    </style>
+</head>
+<body>
+    <div id="sidebar">
+        <h2>Conversations</h2>
+        <div id="conversation-list"></div>
+        <button onclick="newConversation()">New Conversation</button>
+    </div>
+    <div id="main-content">
+        <div id="header">
+            <h1>AI Chat Interface</h1>
+        </div>
+        <div id="config-section">
+            <input type="password" id="api-key" placeholder="Enter your API key">
+            <input type="text" id="model" placeholder="Enter model name (e.g., claude-3.5-sonnet@anthropic)">
+            <input type="text" id="system-prompt" placeholder="Enter system prompt">
+            <div class="settings">
+                <input type="number" id="max-tokens" placeholder="Max tokens (e.g., 4096)" value="4096">
+                <input type="number" id="temperature" placeholder="Temperature (0-1)" value="0" step="0.1" min="0" max="1">
+            </div>
+        </div>
+        <div id="chat-area">
+            <div id="chat-container"></div>
+            <textarea id="user-input" placeholder="Type your message... (Shift+Enter for new line)"></textarea>
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+    <div id="toggle-buttons">
+        <button onclick="toggleSidebar()">Toggle Sidebar</button>
+        <button onclick="toggleConfig()">Toggle Config</button>
+    </div>
+
+    <script>
+        function initializeApp() {
+            let conversations = [];
+            let currentConversationId = null;
+
+            function escapeHtml(unsafe) {
+                return unsafe
+                     .replace(/&/g, "&amp;")
+                     .replace(/</g, "&lt;")
+                     .replace(/>/g, "&gt;")
+                     .replace(/"/g, "&quot;")
+                     .replace(/'/g, "&#039;");
+            }
+
+            function unescapeHtml(safe) {
+                return safe
+                     .replace(/&amp;/g, "&")
+                     .replace(/&lt;/g, "<")
+                     .replace(/&gt;/g, ">")
+                     .replace(/&quot;/g, "\"")
+                     .replace(/&#039;/g, "'");
+            }
+
+            function saveToLocalStorage() {
+                try {
+                    localStorage.setItem('conversations', JSON.stringify(conversations));
+                    localStorage.setItem('currentConversationId', currentConversationId);
+                    localStorage.setItem('apiKey', $('#api-key').val());
+                    localStorage.setItem('model', $('#model').val());
+                    localStorage.setItem('systemPrompt', $('#system-prompt').val());
+                    localStorage.setItem('maxTokens', $('#max-tokens').val());
+                    localStorage.setItem('temperature', $('#temperature').val());
+                } catch (error) {
+                    console.error('Error saving to localStorage:', error);
+                }
+            }
+
+            function loadFromLocalStorage() {
+                try {
+                    const savedConversations = localStorage.getItem('conversations');
+                    if (savedConversations) {
+                        conversations = JSON.parse(savedConversations);
+                        updateConversationList();
+                    }
+                    currentConversationId = localStorage.getItem('currentConversationId');
+                    $('#api-key').val(localStorage.getItem('apiKey') || '');
+                    $('#model').val(localStorage.getItem('model') || '');
+                    $('#system-prompt').val(localStorage.getItem('systemPrompt') || '');
+                    $('#max-tokens').val(localStorage.getItem('maxTokens') || '4096');
+                    $('#temperature').val(localStorage.getItem('temperature') || '0');
+
+                    if (currentConversationId) {
+                        loadConversation(parseInt(currentConversationId));
+                    }
+                } catch (error) {
+                    console.error('Error loading from localStorage:', error);
+                }
+            }
+
+            function toggleSidebar() {
+                $('#sidebar').toggleClass('hidden');
+            }
+
+            function toggleConfig() {
+                $('#config-section').toggleClass('hidden');
+            }
+
+            function newConversation() {
+                const name = prompt("Enter a name for the new conversation:", "New Conversation");
+                if (name) {
+                    currentConversationId = Date.now();
+                    conversations.push({id: currentConversationId, name: name, messages: []});
+                    updateConversationList();
+                    clearChatContainer();
+                    saveToLocalStorage();
+                }
+            }
+
+            function updateConversationList() {
+                $('#conversation-list').empty();
+                conversations.forEach(conv => {
+                    $('#conversation-list').append(`
+                        <div class="conversation-item" data-id="${conv.id}" onclick="loadConversation(${conv.id})">
+                            <span class="conversation-name">${escapeHtml(conv.name)}</span>
+                            <div class="conversation-actions">
+                                <button onclick="renameConversation(${conv.id}); event.stopPropagation();">Rename</button>
+                                <button onclick="deleteConversation(${conv.id}); event.stopPropagation();">Delete</button>
+                            </div>
+                        </div>
+                    `);
+                });
+            }
+
+            function renameConversation(id) {
+                const conversation = conversations.find(conv => conv.id === id);
+                if (conversation) {
+                    const newName = prompt("Enter a new name for the conversation:", conversation.name);
+                    if (newName) {
+                        conversation.name = newName;
+                        updateConversationList();
+                        saveToLocalStorage();
+                    }
+                }
+            }
+
+            function deleteConversation(id) {
+                if (confirm("Are you sure you want to delete this conversation?")) {
+                    conversations = conversations.filter(conv => conv.id !== id);
+                    updateConversationList();
+                    if (currentConversationId === id) {
+                        currentConversationId = null;
+                        clearChatContainer();
+                    }
+                    saveToLocalStorage();
+                }
+            }
+
+            function loadConversation(id) {
+                currentConversationId = id;
+                clearChatContainer();
+                const conversation = conversations.find(conv => conv.id === id);
+                if (conversation) {
+                    conversation.messages.forEach(msg => {
+                        appendMessage(msg.role, msg.content);
+                    });
+                }
+                saveToLocalStorage();
+            }
+
+            function clearChatContainer() {
+                $('#chat-container').empty();
+            }
+
+            function appendMessage(role, content) {
+                const escapedContent = escapeHtml(content);
+                const messageHtml = `
+                    <div class="message">
+                        <strong>${role}:</strong>
+                        <pre>${escapedContent}</pre>
+                        ${role === 'AI' ? '<button class="copy-btn" onclick="copyToClipboard(this)">Copy</button>' : ''}
+                        ${role === 'AI' ? '<button class="regenerate-btn" onclick="regenerateResponse(this)">Regenerate</button>' : ''}
+                    </div>
+                `;
+                $('#chat-container').append(messageHtml);
+                $('#chat-container').scrollTop($('#chat-container')[0].scrollHeight);
+            }
+
+            function copyToClipboard(button) {
+                const escapedContent = $(button).siblings('pre').text();
+                const content = unescapeHtml(escapedContent);
+                navigator.clipboard.writeText(content).then(() => {
+                    alert('Copied to clipboard!');
+                });
+            }
+
+            function regenerateResponse(button) {
+                const escapedUserMessage = $(button).closest('.message').prev().find('pre').text();
+                const userMessage = unescapeHtml(escapedUserMessage);
+                $('#user-input').val(userMessage);
+                sendMessage(true);
+            }
+
+            function sendMessage(isRegenerate = false) {
+                var apiKey = $('#api-key').val();
+                var model = $('#model').val();
+                var userMessage = $('#user-input').val();
+                var maxTokens = $('#max-tokens').val();
+                var temperature = $('#temperature').val();
+                var systemPrompt = $('#system-prompt').val();
+
+                if (!apiKey || !model || !userMessage) {
+                    alert("Please enter API key, model, and message.");
+                    return;
+                }
+
+                if (!isRegenerate) {
+                    appendMessage('You', userMessage);
+                }
+                $('#user-input').val('');
+
+                $.ajax({
+                    url: '/chat',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        api_key: apiKey,
+                        model: model,
+                        message: userMessage,
+                        max_tokens: maxTokens,
+                        temperature: temperature,
+                        system_prompt: systemPrompt,
+                        conversation_id: currentConversationId
+                    }),
+                    success: function(response) {
+                        appendMessage('AI', response.response);
+
+                        // Update conversation history
+                        if (currentConversationId === null) {
+                            newConversation();
+                        }
+                        const conversation = conversations.find(conv => conv.id === currentConversationId);
+                        if (!isRegenerate) {
+                            conversation.messages.push({role: 'You', content: userMessage});
+                        }
+                        conversation.messages.push({role: 'AI', content: response.response});
+                        updateConversationList();
+                        saveToLocalStorage();
+                    },
+                    error: function(xhr) {
+                        appendMessage('Error', xhr.responseJSON ? xhr.responseJSON.error : 'An error occurred');
+                    }
+                });
+            }
+
+            // Initialize the app
+            loadFromLocalStorage();
+            updateConversationList();
+            if (conversations.length > 0 && currentConversationId) {
+                loadConversation(parseInt(currentConversationId));
+            } else if (conversations.length > 0) {
+                loadConversation(conversations[0].id);
+            } else {
+                newConversation();
+            }
+
+            $('#user-input').keydown(function(e) {
+                if (e.keyCode === 13 && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+
+            // Save configuration when inputs change
+            $('#api-key, #model, #system-prompt, #max-tokens, #temperature').on('input', saveToLocalStorage);
+
+            // Expose functions to global scope for onclick events
+            window.newConversation = newConversation;
+            window.renameConversation = renameConversation;
+            window.deleteConversation = deleteConversation;
+            window.loadConversation = loadConversation;
+            window.copyToClipboard = copyToClipboard;
+            window.regenerateResponse = regenerateResponse;
+            window.toggleSidebar = toggleSidebar;
+            window.toggleConfig = toggleConfig;
+            window.sendMessage = sendMessage;
+        }
+
+        // Run the initialization function after the document is fully loaded
+        $(document).ready(initializeApp);
+    </script>
+</body>
+</html>
