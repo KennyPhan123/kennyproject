@@ -1,275 +1,333 @@
-<script>
-    let conversations = [];
-    let currentConversationId = null;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chat Interface</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; display: flex; height: 100vh; overflow: hidden; }
+        #sidebar { width: 250px; background-color: #f0f0f0; padding: 20px; overflow-y: auto; transition: width 0.3s; }
+        #sidebar.hidden { width: 0; padding: 0; overflow: hidden; }
+        #main-content { flex-grow: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        #chat-area { display: flex; flex-direction: column; flex-grow: 1; overflow: hidden; padding: 20px; }
+        #chat-container { flex-grow: 1; border: 1px solid #ccc; overflow-y: auto; padding: 10px; margin-bottom: 10px; }
+        #user-input { width: 100%; height: 100px; resize: vertical; margin-bottom: 10px; padding: 10px; }
+        .conversation-item { cursor: pointer; padding: 5px; margin-bottom: 5px; background-color: #e0e0e0; display: flex; justify-content: space-between; align-items: center; }
+        .conversation-item:hover { background-color: #d0d0d0; }
+        .conversation-name { flex-grow: 1; }
+        .message { margin-bottom: 10px; }
+        .message pre { white-space: pre-wrap; word-wrap: break-word; }
+        .copy-btn, .regenerate-btn { margin-left: 10px; cursor: pointer; }
+        .conversation-actions { display: none; }
+        .conversation-item:hover .conversation-actions { display: block; }
+        #toggle-buttons { position: fixed; top: 10px; right: 10px; }
+        #toggle-buttons button { margin-left: 5px; }
+        #config-popup { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: white; padding: 20px; border: 1px solid #ccc; z-index: 1000; }
+        #config-popup input, #config-popup button { margin-bottom: 10px; width: 100%; }
+    </style>
+</head>
+<body>
+    <div id="sidebar">
+        <div id="conversation-list"></div>
+        <button onclick="newConversation()">New Conversation</button>
+        <button onclick="deleteAllConversations()">Delete All Conversations</button>
+    </div>
+    <div id="main-content">
+        <div id="chat-area">
+            <div id="chat-container"></div>
+            <textarea id="user-input" placeholder="Type your message... (Shift+Enter for new line)"></textarea>
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+    <div id="toggle-buttons">
+        <button onclick="toggleSidebar()">Toggle Sidebar</button>
+        <button onclick="showConfigPopup()">Config</button>
+    </div>
+    <div id="config-popup">
+        <input type="password" id="api-key" placeholder="Enter your API key">
+        <input type="text" id="model" placeholder="Enter model name (e.g., claude-3.5-sonnet@anthropic)">
+        <input type="text" id="system-prompt" placeholder="Enter system prompt">
+        <input type="number" id="max-tokens" placeholder="Max tokens (e.g., 4096)" value="4096">
+        <input type="number" id="temperature" placeholder="Temperature (0-1)" value="0" step="0.1" min="0" max="1">
+        <button onclick="saveConfig()">Save</button>
+        <button onclick="closeConfigPopup()">Close</button>
+    </div>
 
-    function escapeHtml(unsafe) {
-        return unsafe
-             .replace(/&/g, "&amp;")
-             .replace(/</g, "&lt;")
-             .replace(/>/g, "&gt;")
-             .replace(/"/g, "&quot;")
-             .replace(/'/g, "&#039;");
-    }
+    <script>
+        let conversations = [];
+        let currentConversationId = null;
 
-    function unescapeHtml(safe) {
-        return safe
-             .replace(/&amp;/g, "&")
-             .replace(/&lt;/g, "<")
-             .replace(/&gt;/g, ">")
-             .replace(/&quot;/g, "\"")
-             .replace(/&#039;/g, "'");
-    }
-
-    function saveToLocalStorage() {
-        try {
-            localStorage.setItem('conversations', JSON.stringify(conversations));
-            localStorage.setItem('currentConversationId', currentConversationId);
-            localStorage.setItem('apiKey', $('#api-key').val());
-            localStorage.setItem('model', $('#model').val());
-            localStorage.setItem('systemPrompt', $('#system-prompt').val());
-            localStorage.setItem('maxTokens', $('#max-tokens').val());
-            localStorage.setItem('temperature', $('#temperature').val());
-        } catch (error) {
-            console.error('Error saving to localStorage:', error);
+        function escapeHtml(unsafe) {
+            return unsafe
+                 .replace(/&/g, "&amp;")
+                 .replace(/</g, "&lt;")
+                 .replace(/>/g, "&gt;")
+                 .replace(/"/g, "&quot;")
+                 .replace(/'/g, "&#039;");
         }
-    }
 
-    function loadFromLocalStorage() {
-        try {
-            const savedConversations = localStorage.getItem('conversations');
-            if (savedConversations) {
-                conversations = JSON.parse(savedConversations);
-                updateConversationList();
+        function unescapeHtml(safe) {
+            return safe
+                 .replace(/&amp;/g, "&")
+                 .replace(/&lt;/g, "<")
+                 .replace(/&gt;/g, ">")
+                 .replace(/&quot;/g, "\"")
+                 .replace(/&#039;/g, "'");
+        }
+
+        function saveToLocalStorage() {
+            try {
+                localStorage.setItem('conversations', JSON.stringify(conversations));
+                localStorage.setItem('currentConversationId', currentConversationId);
+                localStorage.setItem('apiKey', $('#api-key').val());
+                localStorage.setItem('model', $('#model').val());
+                localStorage.setItem('systemPrompt', $('#system-prompt').val());
+                localStorage.setItem('maxTokens', $('#max-tokens').val());
+                localStorage.setItem('temperature', $('#temperature').val());
+            } catch (error) {
+                console.error('Error saving to localStorage:', error);
             }
-            currentConversationId = localStorage.getItem('currentConversationId');
-            $('#api-key').val(localStorage.getItem('apiKey') || '');
-            $('#model').val(localStorage.getItem('model') || '');
-            $('#system-prompt').val(localStorage.getItem('systemPrompt') || '');
-            $('#max-tokens').val(localStorage.getItem('maxTokens') || '4096');
-            $('#temperature').val(localStorage.getItem('temperature') || '0');
+        }
 
-            if (currentConversationId) {
-                loadConversation(parseInt(currentConversationId));
+        function loadFromLocalStorage() {
+            try {
+                const savedConversations = localStorage.getItem('conversations');
+                if (savedConversations) {
+                    conversations = JSON.parse(savedConversations);
+                    updateConversationList();
+                }
+                currentConversationId = localStorage.getItem('currentConversationId');
+                $('#api-key').val(localStorage.getItem('apiKey') || '');
+                $('#model').val(localStorage.getItem('model') || '');
+                $('#system-prompt').val(localStorage.getItem('systemPrompt') || '');
+                $('#max-tokens').val(localStorage.getItem('maxTokens') || '4096');
+                $('#temperature').val(localStorage.getItem('temperature') || '0');
+
+                if (currentConversationId) {
+                    loadConversation(parseInt(currentConversationId));
+                }
+            } catch (error) {
+                console.error('Error loading from localStorage:', error);
             }
-        } catch (error) {
-            console.error('Error loading from localStorage:', error);
         }
-    }
 
-    function toggleSidebar() {
-        $('#sidebar').toggleClass('hidden');
-    }
-
-    function newConversation() {
-        const name = prompt("Enter a name for the new conversation:", "New Conversation");
-        if (name) {
-            currentConversationId = Date.now();
-            conversations.push({id: currentConversationId, name: name, messages: []});
-            updateConversationList();
-            clearChatContainer();
-            saveToLocalStorage();
+        function toggleSidebar() {
+            $('#sidebar').toggleClass('hidden');
         }
-    }
 
-    function updateConversationList() {
-        $('#conversation-list').empty();
-        conversations.forEach(conv => {
-            $('#conversation-list').append(`
-                <div class="conversation-item" data-id="${conv.id}" onclick="loadConversation(${conv.id})">
-                    <span class="conversation-name">${escapeHtml(conv.name)}</span>
-                    <div class="conversation-actions">
-                        <button onclick="renameConversation(${conv.id}); event.stopPropagation();">Rename</button>
-                        <button onclick="deleteConversation(${conv.id}); event.stopPropagation();">Delete</button>
-                    </div>
-                </div>
-            `);
-        });
-    }
-
-    function renameConversation(id) {
-        const conversation = conversations.find(conv => conv.id === id);
-        if (conversation) {
-            const newName = prompt("Enter a new name for the conversation:", conversation.name);
-            if (newName) {
-                conversation.name = newName;
+        function newConversation() {
+            const name = prompt("Enter a name for the new conversation:", "New Conversation");
+            if (name) {
+                currentConversationId = Date.now();
+                conversations.push({id: currentConversationId, name: name, messages: []});
                 updateConversationList();
+                clearChatContainer();
                 saveToLocalStorage();
             }
         }
-    }
 
-    function deleteConversation(id) {
-        if (confirm("Are you sure you want to delete this conversation?")) {
-            conversations = conversations.filter(conv => conv.id !== id);
-            updateConversationList();
-            if (currentConversationId === id) {
-                currentConversationId = null;
-                clearChatContainer();
-            }
-            saveToLocalStorage();
-        }
-    }
-
-    function loadConversation(id) {
-        currentConversationId = id;
-        clearChatContainer();
-        const conversation = conversations.find(conv => conv.id === id);
-        if (conversation) {
-            conversation.messages.forEach(msg => {
-                appendMessage(msg.role, msg.content);
+        function updateConversationList() {
+            $('#conversation-list').empty();
+            conversations.forEach(conv => {
+                $('#conversation-list').append(`
+                    <div class="conversation-item" data-id="${conv.id}" onclick="loadConversation(${conv.id})">
+                        <span class="conversation-name">${escapeHtml(conv.name)}</span>
+                        <div class="conversation-actions">
+                            <button onclick="renameConversation(${conv.id}); event.stopPropagation();">Rename</button>
+                            <button onclick="deleteConversation(${conv.id}); event.stopPropagation();">Delete</button>
+                        </div>
+                    </div>
+                `);
             });
         }
-        saveToLocalStorage();
-    }
 
-    function clearChatContainer() {
-        $('#chat-container').empty();
-    }
-
-    function appendMessage(role, content) {
-        const escapedContent = escapeHtml(content);
-        const displayRole = role.toLowerCase() === 'user' ? 'You' : $('#model').val().split('@')[0];
-        const messageHtml = `
-            <div class="message">
-                <strong>${displayRole}:</strong>
-                <pre>${escapedContent}</pre>
-                ${role.toLowerCase() !== 'user' ? '<button class="copy-btn" onclick="copyToClipboard(this)">Copy</button>' : ''}
-                ${role.toLowerCase() !== 'user' ? '<button class="regenerate-btn" onclick="regenerateResponse(this)">Regenerate</button>' : ''}
-            </div>
-        `;
-        $('#chat-container').append(messageHtml);
-        $('#chat-container').scrollTop($('#chat-container')[0].scrollHeight);
-    }
-
-    function copyToClipboard(button) {
-        const escapedContent = $(button).siblings('pre').text();
-        const content = unescapeHtml(escapedContent);
-        navigator.clipboard.writeText(content).then(() => {
-            alert('Copied to clipboard!');
-        });
-    }
-
-    function regenerateResponse(button) {
-        const escapedUserMessage = $(button).closest('.message').prev().find('pre').text();
-        const userMessage = unescapeHtml(escapedUserMessage);
-        $('#user-input').val(userMessage);
-        sendMessage(true);
-    }
-
-    function sendMessage(isRegenerate = false) {
-        var apiKey = $('#api-key').val();
-        var model = $('#model').val();
-        var userMessage = $('#user-input').val();
-        var maxTokens = $('#max-tokens').val();
-        var temperature = $('#temperature').val();
-        var systemPrompt = $('#system-prompt').val();
-
-        if (!apiKey || !model || !userMessage) {
-            alert("Please enter API key, model, and message.");
-            return;
-        }
-
-        if (!isRegenerate) {
-            appendMessage('user', userMessage);
-        }
-        $('#user-input').val('');
-
-        // Get the current conversation
-        const conversation = conversations.find(conv => conv.id === currentConversationId);
-        if (!conversation) {
-            console.error('No active conversation');
-            return;
-        }
-
-        // Prepare messages array with system prompt and conversation history
-        const messages = [
-            {"role": "system", "content": systemPrompt},
-            ...conversation.messages,
-            {"role": "user", "content": userMessage}
-        ];
-
-        fetch('/.netlify/functions/chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                api_key: apiKey,
-                model: model,
-                messages: messages,
-                max_tokens: parseInt(maxTokens),
-                temperature: parseFloat(temperature)
-            })
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+        function renameConversation(id) {
+            const conversation = conversations.find(conv => conv.id === id);
+            if (conversation) {
+                const newName = prompt("Enter a new name for the conversation:", conversation.name);
+                if (newName) {
+                    conversation.name = newName;
+                    updateConversationList();
+                    saveToLocalStorage();
+                }
             }
-            return response.json();
-        })
-        .then(data => {
-            const aiMessage = data.choices[0].message.content.trim();
-            appendMessage('assistant', aiMessage);
+        }
 
-            // Update conversation history
-            if (!isRegenerate) {
-                conversation.messages.push({role: 'user', content: userMessage});
+        function deleteConversation(id) {
+            if (confirm("Are you sure you want to delete this conversation?")) {
+                conversations = conversations.filter(conv => conv.id !== id);
+                updateConversationList();
+                if (currentConversationId === id) {
+                    currentConversationId = null;
+                    clearChatContainer();
+                }
+                saveToLocalStorage();
             }
-            conversation.messages.push({role: 'assistant', content: aiMessage});
-            updateConversationList();
-            saveToLocalStorage();
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            appendMessage('Error', `An error occurred while fetching the response: ${error.message}`);
-        });
-    }
+        }
 
-    function showConfigPopup() {
-        $('#config-popup').show();
-    }
-
-    function closeConfigPopup() {
-        $('#config-popup').hide();
-    }
-
-    function saveConfig() {
-        saveToLocalStorage();
-        closeConfigPopup();
-    }
-
-    function deleteAllConversations() {
-        if (confirm("Are you sure you want to delete all conversations?")) {
-            conversations = [];
-            currentConversationId = null;
-            updateConversationList();
+        function loadConversation(id) {
+            currentConversationId = id;
             clearChatContainer();
+            const conversation = conversations.find(conv => conv.id === id);
+            if (conversation) {
+                conversation.messages.forEach(msg => {
+                    appendMessage(msg.role, msg.content);
+                });
+            }
             saveToLocalStorage();
         }
-    }
 
-    function initializeApp() {
-        loadFromLocalStorage();
-        updateConversationList();
-        if (conversations.length > 0 && currentConversationId) {
-            loadConversation(parseInt(currentConversationId));
-        } else if (conversations.length > 0) {
-            loadConversation(conversations[0].id);
-        } else {
-            newConversation();
+        function clearChatContainer() {
+            $('#chat-container').empty();
         }
 
-        $('#user-input').keydown(function(e) {
-            if (e.keyCode === 13 && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
+        function appendMessage(role, content) {
+            const escapedContent = escapeHtml(content);
+            const displayRole = role.toLowerCase() === 'user' ? 'You' : $('#model').val().split('@')[0];
+            const messageHtml = `
+                <div class="message">
+                    <strong>${displayRole}:</strong>
+                    <pre>${escapedContent}</pre>
+                    ${role.toLowerCase() !== 'user' ? '<button class="copy-btn" onclick="copyToClipboard(this)">Copy</button>' : ''}
+                    ${role.toLowerCase() !== 'user' ? '<button class="regenerate-btn" onclick="regenerateResponse(this)">Regenerate</button>' : ''}
+                </div>
+            `;
+            $('#chat-container').append(messageHtml);
+            $('#chat-container').scrollTop($('#chat-container')[0].scrollHeight);
+        }
+
+        function copyToClipboard(button) {
+            const escapedContent = $(button).siblings('pre').text();
+            const content = unescapeHtml(escapedContent);
+            navigator.clipboard.writeText(content).then(() => {
+                alert('Copied to clipboard!');
+            });
+        }
+
+        function regenerateResponse(button) {
+            const escapedUserMessage = $(button).closest('.message').prev().find('pre').text();
+            const userMessage = unescapeHtml(escapedUserMessage);
+            $('#user-input').val(userMessage);
+            sendMessage(true);
+        }
+
+        function sendMessage(isRegenerate = false) {
+            var apiKey = $('#api-key').val();
+            var model = $('#model').val();
+            var userMessage = $('#user-input').val();
+            var maxTokens = $('#max-tokens').val();
+            var temperature = $('#temperature').val();
+            var systemPrompt = $('#system-prompt').val();
+
+            if (!apiKey || !model || !userMessage) {
+                alert("Please enter API key, model, and message.");
+                return;
             }
-        });
 
-        // Save configuration when inputs change
-        $('#api-key, #model, #system-prompt, #max-tokens, #temperature').on('input', saveToLocalStorage);
-    }
+            if (!isRegenerate) {
+                appendMessage('user', userMessage);
+            }
+            $('#user-input').val('');
 
-    // Run the initialization function after the document is fully loaded
-    $(document).ready(initializeApp);
-</script>
+            // Get the current conversation
+            const conversation = conversations.find(conv => conv.id === currentConversationId);
+            if (!conversation) {
+                console.error('No active conversation');
+                return;
+            }
+
+            // Prepare messages array with system prompt and conversation history
+            const messages = [
+                {"role": "system", "content": systemPrompt},
+                ...conversation.messages,
+                {"role": "user", "content": userMessage}
+            ];
+
+            fetch('/.netlify/functions/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    api_key: apiKey,
+                    model: model,
+                    messages: messages,
+                    max_tokens: parseInt(maxTokens),
+                    temperature: parseFloat(temperature)
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                const aiMessage = data.choices[0].message.content.trim();
+                appendMessage('assistant', aiMessage);
+
+                // Update conversation history
+                if (!isRegenerate) {
+                    conversation.messages.push({role: 'user', content: userMessage});
+                }
+                conversation.messages.push({role: 'assistant', content: aiMessage});
+                updateConversationList();
+                saveToLocalStorage();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                appendMessage('Error', `An error occurred while fetching the response: ${error.message}`);
+            });
+        }
+
+        function showConfigPopup() {
+            $('#config-popup').show();
+        }
+
+        function closeConfigPopup() {
+            $('#config-popup').hide();
+        }
+
+        function saveConfig() {
+            saveToLocalStorage();
+            closeConfigPopup();
+        }
+
+        function deleteAllConversations() {
+            if (confirm("Are you sure you want to delete all conversations?")) {
+                conversations = [];
+                currentConversationId = null;
+                updateConversationList();
+                clearChatContainer();
+                saveToLocalStorage();
+            }
+        }
+
+        function initializeApp() {
+            loadFromLocalStorage();
+            updateConversationList();
+            if (conversations.length > 0 && currentConversationId) {
+                loadConversation(parseInt(currentConversationId));
+            } else if (conversations.length > 0) {
+                loadConversation(conversations[0].id);
+            } else {
+                newConversation();
+            }
+
+            $('#user-input').keydown(function(e) {
+                if (e.keyCode === 13 && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+
+            // Save configuration when inputs change
+            $('#api-key, #model, #system-prompt, #max-tokens, #temperature').on('input', saveToLocalStorage);
+        }
+
+        // Run the initialization function after the document is fully loaded
+        $(document).ready(initializeApp);
+    </script>
+</body>
+</html>
