@@ -10,16 +10,9 @@
         #sidebar { width: 250px; background-color: #f0f0f0; padding: 20px; overflow-y: auto; transition: width 0.3s; }
         #sidebar.hidden { width: 0; padding: 0; overflow: hidden; }
         #main-content { flex-grow: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        #header { padding: 20px; }
-        #config-section { padding: 0 20px; max-height: 200px; overflow-y: auto; transition: max-height 0.3s, opacity 0.3s; opacity: 1; }
-        #config-section.hidden { max-height: 0; opacity: 0; overflow: hidden; }
-        #chat-area { display: flex; flex-direction: column; flex-grow: 1; overflow: hidden; padding: 0 20px 20px; }
+        #chat-area { display: flex; flex-direction: column; flex-grow: 1; overflow: hidden; padding: 20px; }
         #chat-container { flex-grow: 1; border: 1px solid #ccc; overflow-y: auto; padding: 10px; margin-bottom: 10px; }
-        input, select, button, textarea { margin-bottom: 10px; padding: 5px; }
-        #api-key, #model, #system-prompt { width: 100%; }
-        #user-input { width: 100%; height: 60px; resize: vertical; }
-        .settings { display: flex; justify-content: space-between; }
-        .settings input { width: 45%; }
+        #user-input { width: 100%; height: 100px; resize: vertical; margin-bottom: 10px; padding: 10px; }
         .conversation-item { cursor: pointer; padding: 5px; margin-bottom: 5px; background-color: #e0e0e0; display: flex; justify-content: space-between; align-items: center; }
         .conversation-item:hover { background-color: #d0d0d0; }
         .conversation-name { flex-grow: 1; }
@@ -30,27 +23,17 @@
         .conversation-item:hover .conversation-actions { display: block; }
         #toggle-buttons { position: fixed; top: 10px; right: 10px; }
         #toggle-buttons button { margin-left: 5px; }
+        #config-popup { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: white; padding: 20px; border: 1px solid #ccc; z-index: 1000; }
+        #config-popup input, #config-popup button { margin-bottom: 10px; width: 100%; }
     </style>
 </head>
 <body>
     <div id="sidebar">
-        <h2>Conversations</h2>
         <div id="conversation-list"></div>
         <button onclick="newConversation()">New Conversation</button>
+        <button onclick="deleteAllConversations()">Delete All Conversations</button>
     </div>
     <div id="main-content">
-        <div id="header">
-            <h1>AI Chat Interface</h1>
-        </div>
-        <div id="config-section">
-            <input type="password" id="api-key" placeholder="Enter your API key">
-            <input type="text" id="model" placeholder="Enter model name (e.g., claude-3.5-sonnet@anthropic)">
-            <input type="text" id="system-prompt" placeholder="Enter system prompt">
-            <div class="settings">
-                <input type="number" id="max-tokens" placeholder="Max tokens (e.g., 4096)" value="4096">
-                <input type="number" id="temperature" placeholder="Temperature (0-1)" value="0" step="0.1" min="0" max="1">
-            </div>
-        </div>
         <div id="chat-area">
             <div id="chat-container"></div>
             <textarea id="user-input" placeholder="Type your message... (Shift+Enter for new line)"></textarea>
@@ -59,31 +42,22 @@
     </div>
     <div id="toggle-buttons">
         <button onclick="toggleSidebar()">Toggle Sidebar</button>
-        <button onclick="toggleConfig()">Toggle Config</button>
+        <button onclick="showConfigPopup()">Config</button>
+    </div>
+    <div id="config-popup">
+        <input type="password" id="api-key" placeholder="Enter your API key">
+        <input type="text" id="model" placeholder="Enter model name (e.g., claude-3.5-sonnet@anthropic)">
+        <input type="text" id="system-prompt" placeholder="Enter system prompt">
+        <input type="number" id="max-tokens" placeholder="Max tokens (e.g., 4096)" value="4096">
+        <input type="number" id="temperature" placeholder="Temperature (0-1)" value="0" step="0.1" min="0" max="1">
+        <button onclick="saveConfig()">Save</button>
+        <button onclick="closeConfigPopup()">Close</button>
     </div>
 
     <script>
         function initializeApp() {
             let conversations = [];
             let currentConversationId = null;
-
-            function escapeHtml(unsafe) {
-                return unsafe
-                     .replace(/&/g, "&amp;")
-                     .replace(/</g, "&lt;")
-                     .replace(/>/g, "&gt;")
-                     .replace(/"/g, "&quot;")
-                     .replace(/'/g, "&#039;");
-            }
-
-            function unescapeHtml(safe) {
-                return safe
-                     .replace(/&amp;/g, "&")
-                     .replace(/&lt;/g, "<")
-                     .replace(/&gt;/g, ">")
-                     .replace(/&quot;/g, "\"")
-                     .replace(/&#039;/g, "'");
-            }
 
             function saveToLocalStorage() {
                 try {
@@ -294,6 +268,30 @@
                 });
             }
 
+            // Functions for managing config popup
+            function showConfigPopup() {
+                $('#config-popup').show();
+            }
+
+            function closeConfigPopup() {
+                $('#config-popup').hide();
+            }
+
+            function saveConfig() {
+                saveToLocalStorage();
+                closeConfigPopup();
+            }
+
+            function deleteAllConversations() {
+                if (confirm("Are you sure you want to delete all conversations?")) {
+                    conversations = [];
+                    currentConversationId = null;
+                    updateConversationList();
+                    clearChatContainer();
+                    saveToLocalStorage();
+                }
+            }
+
             // Initialize the app
             loadFromLocalStorage();
             updateConversationList();
@@ -323,8 +321,11 @@
             window.copyToClipboard = copyToClipboard;
             window.regenerateResponse = regenerateResponse;
             window.toggleSidebar = toggleSidebar;
-            window.toggleConfig = toggleConfig;
+            window.showConfigPopup = showConfigPopup;
+            window.closeConfigPopup = closeConfigPopup;
+            window.saveConfig = saveConfig;
             window.sendMessage = sendMessage;
+            window.deleteAllConversations = deleteAllConversations;
         }
 
         // Run the initialization function after the document is fully loaded
