@@ -242,37 +242,44 @@
                 }
                 $('#user-input').val('');
 
-                $.ajax({
-                    url: '/chat',
-                    type: 'POST',
-                    contentType: 'application/json',
-                    data: JSON.stringify({
-                        api_key: apiKey,
-                        model: model,
-                        message: userMessage,
-                        max_tokens: maxTokens,
-                        temperature: temperature,
-                        system_prompt: systemPrompt,
-                        conversation_id: currentConversationId
-                    }),
-                    success: function(response) {
-                        appendMessage('AI', response.response);
+                const messages = [
+                    {"role": "system", "content": systemPrompt},
+                    {"role": "user", "content": userMessage}
+                ];
 
-                        // Update conversation history
-                        if (currentConversationId === null) {
-                            newConversation();
-                        }
-                        const conversation = conversations.find(conv => conv.id === currentConversationId);
-                        if (!isRegenerate) {
-                            conversation.messages.push({role: 'You', content: userMessage});
-                        }
-                        conversation.messages.push({role: 'AI', content: response.response});
-                        updateConversationList();
-                        saveToLocalStorage();
+                fetch('https://api.unify.ai/v0/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
                     },
-                    error: function(xhr) {
-                        appendMessage('Error', xhr.responseJSON ? xhr.responseJSON.error : 'An error occurred');
+                    body: JSON.stringify({
+                        model: model,
+                        messages: messages,
+                        max_tokens: parseInt(maxTokens),
+                        temperature: parseFloat(temperature)
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const aiMessage = data.choices[0].message.content.trim();
+                    appendMessage('AI', aiMessage);
+
+                    // Update conversation history
+                    if (currentConversationId === null) {
+                        newConversation();
                     }
+                    const conversation = conversations.find(conv => conv.id === currentConversationId);
+                    if (!isRegenerate) {
+                        conversation.messages.push({role: 'You', content: userMessage});
+                    }
+                    conversation.messages.push({role: 'AI', content: aiMessage});
+                    updateConversationList();
+                    saveToLocalStorage();
+                })
+                .catch(error => {
+                    appendMessage('Error', 'An error occurred while fetching the response.');
+                    console.error('Error:', error);
                 });
             }
 
