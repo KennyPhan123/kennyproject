@@ -247,18 +247,13 @@
                     {"role": "user", "content": userMessage}
                 ];
 
-                // Use a CORS proxy
-                const corsProxy = 'https://cors-anywhere.herokuapp.com/';
-                const apiUrl = 'https://api.unify.ai/v0/chat/completions';
-
-                fetch(corsProxy + apiUrl, {
+                fetch('/.netlify/functions/chat', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${apiKey}`,
-                        'Origin': window.location.origin // Add this line
                     },
                     body: JSON.stringify({
+                        api_key: apiKey,
                         model: model,
                         messages: messages,
                         max_tokens: parseInt(maxTokens),
