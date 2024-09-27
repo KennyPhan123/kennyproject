@@ -197,12 +197,13 @@
 
             function appendMessage(role, content) {
                 const escapedContent = escapeHtml(content);
+                const displayRole = role.toLowerCase() === 'user' ? 'You' : $('#model').val().split('@')[0];
                 const messageHtml = `
                     <div class="message">
-                        <strong>${role}:</strong>
+                        <strong>${displayRole}:</strong>
                         <pre>${escapedContent}</pre>
-                        ${role === 'AI' ? '<button class="copy-btn" onclick="copyToClipboard(this)">Copy</button>' : ''}
-                        ${role === 'AI' ? '<button class="regenerate-btn" onclick="regenerateResponse(this)">Regenerate</button>' : ''}
+                        ${role.toLowerCase() !== 'user' ? '<button class="copy-btn" onclick="copyToClipboard(this)">Copy</button>' : ''}
+                        ${role.toLowerCase() !== 'user' ? '<button class="regenerate-btn" onclick="regenerateResponse(this)">Regenerate</button>' : ''}
                     </div>
                 `;
                 $('#chat-container').append(messageHtml);
@@ -238,7 +239,7 @@
                 }
 
                 if (!isRegenerate) {
-                    appendMessage('You', userMessage);
+                    appendMessage('user', userMessage);
                 }
                 $('#user-input').val('');
 
@@ -277,7 +278,7 @@
                 })
                 .then(data => {
                     const aiMessage = data.choices[0].message.content.trim();
-                    appendMessage('AI', aiMessage);
+                    appendMessage('assistant', aiMessage);
 
                     // Update conversation history
                     if (!isRegenerate) {
