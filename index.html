@@ -422,14 +422,14 @@
                 return response.json().then(data => ({status: response.status, body: data}));
             })
             .then(({status, body}) => {
-                console.log('Response body:', body);
+                console.log('Full response:', body);
                 if (status !== 200) {
-                    throw new Error(`HTTP error! status: ${status}, message: ${body.error || 'Unknown error'}, details: ${JSON.stringify(body.details)}`);
+                    throw new Error(`HTTP error! status: ${status}, details: ${JSON.stringify(body)}`);
                 }
                 if (body.error) {
                     throw new Error(body.error);
                 }
-                const credits = body.credits || body.balance || body.amount || (typeof body === 'object' && body.data ? body.data.credits : null) || 'Unknown';
+                const credits = body.data?.credits || body.data?.balance || body.data?.amount || 'Unknown';
                 $('#user-input').attr('placeholder', `Balance: $${typeof credits === 'number' ? credits.toFixed(2) : credits} - Type your message...`);
             })
             .catch(error => {

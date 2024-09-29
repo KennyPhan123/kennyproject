@@ -35,6 +35,8 @@ exports.handler = async function(event, context) {
       }
     };
 
+    console.log('Request options:', JSON.stringify(options));
+
     const req = https.request(options, (res) => {
       let data = '';
 
@@ -44,22 +46,17 @@ exports.handler = async function(event, context) {
 
       res.on('end', () => {
         console.log('Response status:', res.statusCode);
+        console.log('Response headers:', JSON.stringify(res.headers));
         console.log('Response data:', data);
 
-        if (res.statusCode === 200) {
-          resolve({
-            statusCode: 200,
-            body: data
-          });
-        } else {
-          resolve({
-            statusCode: res.statusCode,
-            body: JSON.stringify({
-              error: 'An error occurred while fetching the balance',
-              details: data
-            })
-          });
-        }
+        resolve({
+          statusCode: res.statusCode,
+          body: JSON.stringify({
+            status: res.statusCode,
+            headers: res.headers,
+            data: data
+          })
+        });
       });
     });
 
