@@ -1,4 +1,4 @@
-const axios = require('axios');
+const https = require('https');
 
 exports.handler = async function(event, context) {
   console.log('Function invoked');
@@ -23,29 +23,57 @@ exports.handler = async function(event, context) {
     return { statusCode: 400, body: JSON.stringify({ error: 'API key is required' }) };
   }
 
-  try {
-    console.log('Sending request to Unify API');
-    const response = await axios.get('https://api.unify.ai/v1/billing/credits', {
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname: 'api.unify.ai',
+      port: 443,
+      path: '/v1/billing/credits',
+      method: 'GET',
       headers: {
-        'accept': 'application/json',
+        'Accept': 'application/json',
         'Authorization': `Bearer ${api_key}`
       }
-    });
-    console.log('Response received:', response.data);
+    };
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify(response.data)
-    };
-  } catch (error) {
-    console.error('Error fetching credits:', error);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({
-        error: 'An error occurred while fetching the balance',
-        details: error.response ? error.response.data : error.message,
-        fullError: JSON.stringify(error)
-      })
-    };
-  }
+    const req = https.request(options, (res) => {
+      let data = '';
+
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+
+      res.on('end', () => {
+        console.log('Response status:', res.statusCode);
+        console.log('Response data:', data);
+
+        if (res.statusCode === 200) {
+          resolve({
+            statusCode: 200,
+            body: data
+          });
+        } else {
+          resolve({
+            statusCode: res.statusCode,
+            body: JSON.stringify({
+              error: 'An error occurred while fetching the balance',
+              details: data
+            })
+          });
+        }
+      });
+    });
+
+    req.on('error', (error) => {
+      console.error('Error:', error);
+      resolve({
+        statusCode: 500,
+        body: JSON.stringify({
+          error: 'An error occurred while fetching the balance',
+          details: error.message
+        })
+      });
+    });
+
+    req.end();
+  });
 };
