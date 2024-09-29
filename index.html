@@ -401,44 +401,6 @@
             }
         }
 
-        function updateBalance() {
-            var apiKey = $('#api-key').val();
-            if (!apiKey) {
-                $('#user-input').attr('placeholder', 'Please enter your API key in the config');
-                return;
-            }
-
-            $('#user-input').attr('placeholder', 'Fetching balance...');
-
-            fetch('/.netlify/functions/get-credits', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ api_key: apiKey })
-            })
-            .then(response => {
-                console.log('Response status:', response.status);
-                return response.json().then(data => ({status: response.status, body: data}));
-            })
-            .then(({status, body}) => {
-                console.log('Full response:', body);
-                if (status !== 200) {
-                    throw new Error(`HTTP error! status: ${status}, details: ${JSON.stringify(body)}`);
-                }
-                if (body.error) {
-                    throw new Error(body.error);
-                }
-                const credits = body.data?.credits || body.data?.balance || body.data?.amount || 'Unknown';
-                $('#user-input').attr('placeholder', `Balance: $${typeof credits === 'number' ? credits.toFixed(2) : credits} - Type your message...`);
-            })
-            .catch(error => {
-                console.error('Error fetching balance:', error);
-                $('#user-input').attr('placeholder', `Error fetching balance. Type your message...`);
-                alert(`Error fetching balance: ${error.message}`);
-            });
-        }
-
         function initializeApp() {
             loadFromLocalStorage();
             updateConversationList();
@@ -452,15 +414,6 @@
 
             // Save configuration when inputs change
             $('#api-key, #model, #system-prompt, #max-tokens, #temperature').on('input', saveToLocalStorage);
-
-            // Update balance when API key changes
-            $('#api-key').on('input', function() {
-                saveToLocalStorage();
-                updateBalance();
-            });
-
-            // Initial balance update
-            updateBalance();
         }
 
         // Run the initialization function after the document is fully loaded
