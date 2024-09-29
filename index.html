@@ -424,7 +424,7 @@
             .then(({status, body}) => {
                 console.log('Response body:', body);
                 if (status !== 200) {
-                    throw new Error(`HTTP error! status: ${status}, message: ${body.error || 'Unknown error'}, details: ${JSON.stringify(body.details)}`);
+                    throw new Error(`HTTP error! status: ${status}, message: ${body.error || 'Unknown error'}, details: ${JSON.stringify(body.details)}, fullError: ${body.fullError}`);
                 }
                 if (body.error) {
                     throw new Error(body.error);

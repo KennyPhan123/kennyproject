@@ -38,12 +38,13 @@ exports.handler = async function(event, context) {
       body: JSON.stringify(response.data)
     };
   } catch (error) {
-    console.error('Error fetching credits:', error.response ? error.response.data : error.message);
+    console.error('Error fetching credits:', error);
     return {
       statusCode: 500,
       body: JSON.stringify({
         error: 'An error occurred while fetching the balance',
-        details: error.response ? error.response.data : error.message
+        details: error.response ? error.response.data : error.message,
+        fullError: JSON.stringify(error)
       })
     };
   }
