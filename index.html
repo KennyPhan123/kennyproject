@@ -418,20 +418,22 @@
                 body: JSON.stringify({ api_key: apiKey })
             })
             .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
+                console.log('Response status:', response.status);
+                return response.json().then(data => ({status: response.status, body: data}));
             })
-            .then(data => {
-                if (data.error) {
-                    throw new Error(data.error);
+            .then(({status, body}) => {
+                console.log('Response body:', body);
+                if (status !== 200) {
+                    throw new Error(`HTTP error! status: ${status}, message: ${body.error || 'Unknown error'}`);
                 }
-                $('#user-input').attr('placeholder', `Balance: $${data.credits.toFixed(2)} - Type your message...`);
+                if (body.error) {
+                    throw new Error(body.error);
+                }
+                $('#user-input').attr('placeholder', `Balance: $${body.credits.toFixed(2)} - Type your message...`);
             })
             .catch(error => {
                 console.error('Error fetching balance:', error);
-                $('#user-input').attr('placeholder', 'Error fetching balance. Type your message...');
+                $('#user-input').attr('placeholder', `Error fetching balance: ${error.message}. Type your message...`);
             });
         }
 
