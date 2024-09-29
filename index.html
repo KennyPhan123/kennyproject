@@ -424,7 +424,7 @@
             .then(({status, body}) => {
                 console.log('Response body:', body);
                 if (status !== 200) {
-                    throw new Error(`HTTP error! status: ${status}, message: ${body.error || 'Unknown error'}`);
+                    throw new Error(`HTTP error! status: ${status}, message: ${body.error || 'Unknown error'}, details: ${JSON.stringify(body.details)}`);
                 }
                 if (body.error) {
                     throw new Error(body.error);
@@ -433,7 +433,8 @@
             })
             .catch(error => {
                 console.error('Error fetching balance:', error);
-                $('#user-input').attr('placeholder', `Error fetching balance: ${error.message}. Type your message...`);
+                $('#user-input').attr('placeholder', `Error fetching balance. Type your message...`);
+                alert(`Error fetching balance: ${error.message}`);
             });
         }
 

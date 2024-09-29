@@ -5,7 +5,7 @@ exports.handler = async function(event, context) {
 
   if (event.httpMethod !== 'POST') {
     console.log('Method not allowed');
-    return { statusCode: 405, body: 'Method Not Allowed' };
+    return { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
   }
 
   let api_key;
@@ -41,7 +41,10 @@ exports.handler = async function(event, context) {
     console.error('Error fetching credits:', error.response ? error.response.data : error.message);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'An error occurred while fetching the balance' })
+      body: JSON.stringify({
+        error: 'An error occurred while fetching the balance',
+        details: error.response ? error.response.data : error.message
+      })
     };
   }
 };
