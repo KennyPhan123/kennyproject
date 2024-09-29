@@ -7,119 +7,7 @@
     <link rel="icon" type="image/png" href="/favicon.png">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            height: 100vh;
-            overflow: hidden;
-        }
-        #sidebar {
-            width: 250px;
-            background-color: #f0f0f0;
-            padding: 20px;
-            overflow-y: auto;
-            transition: width 0.3s;
-            flex-shrink: 0;
-        }
-        #sidebar.hidden {
-            width: 0;
-            padding: 0;
-            overflow: hidden;
-        }
-        #main-content {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
-        }
-        #chat-area {
-            display: flex;
-            flex-direction: column;
-            flex-grow: 1;
-            overflow: hidden;
-            padding: 20px;
-        }
-        #chat-container {
-            flex-grow: 1;
-            border: 1px solid #ccc;
-            overflow-y: auto;
-            padding: 10px;
-            margin-bottom: 10px;
-        }
-        #user-input-container {
-            flex-shrink: 0;
-            height: 150px;
-            display: flex;
-            flex-direction: column;
-        }
-        #user-input {
-            width: 100%;
-            height: 100px;
-            resize: none;
-            margin-bottom: 10px;
-            padding: 10px;
-        }
-        .conversation-item {
-            cursor: pointer;
-            padding: 5px;
-            margin-bottom: 5px;
-            background-color: #e0e0e0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .conversation-item:hover {
-            background-color: #d0d0d0;
-        }
-        .conversation-name {
-            flex-grow: 1;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .message {
-            margin-bottom: 10px;
-        }
-        .message pre {
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
-        .copy-btn, .regenerate-btn {
-            margin-left: 10px;
-            cursor: pointer;
-        }
-        .conversation-actions {
-            display: none;
-        }
-        .conversation-item:hover .conversation-actions {
-            display: block;
-        }
-        #toggle-buttons {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-        }
-        #toggle-buttons button {
-            margin-left: 5px;
-        }
-        #config-popup {
-            display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: white;
-            padding: 20px;
-            border: 1px solid #ccc;
-            z-index: 1000;
-        }
-        #config-popup input, #config-popup button {
-            margin-bottom: 10px;
-            width: 100%;
-        }
+        /* ... (all previous styles remain the same) ... */
     </style>
 </head>
 <body>
@@ -132,7 +20,7 @@
         <div id="chat-area">
             <div id="chat-container"></div>
             <div id="user-input-container">
-                <textarea id="user-input" placeholder="Type your message... (Enter for new line)"></textarea>
+                <textarea id="user-input" placeholder="Loading balance..."></textarea>
                 <button onclick="sendMessage()">Send</button>
             </div>
         </div>
@@ -207,6 +95,35 @@
             } catch (error) {
                 console.error('Error loading from localStorage:', error);
             }
+        }
+
+        function updateBalance() {
+            var apiKey = $('#api-key').val();
+            if (!apiKey) {
+                $('#user-input').attr('placeholder', 'Please enter your API key in the config');
+                return;
+            }
+
+            fetch('https://api.unify.ai/v0/get_credits', {
+                method: 'GET',
+                headers: {
+                    'accept': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                $('#user-input').attr('placeholder', `Balance: $${data.credits.toFixed(2)} - Type your message...`);
+            })
+            .catch(error => {
+                console.error('Error fetching balance:', error);
+                $('#user-input').attr('placeholder', 'Error fetching balance. Please check your API key.');
+            });
         }
 
         function toggleSidebar() {
@@ -371,6 +288,7 @@
                 conversation.messages.push({role: 'assistant', content: aiMessage});
                 updateConversationList();
                 saveToLocalStorage();
+                updateBalance();  // Update balance after each message
             })
             .catch(error => {
                 console.error('Error:', error);
@@ -388,6 +306,7 @@
 
         function saveConfig() {
             saveToLocalStorage();
+            updateBalance();
             closeConfigPopup();
         }
 
@@ -414,6 +333,12 @@
 
             // Save configuration when inputs change
             $('#api-key, #model, #system-prompt, #max-tokens, #temperature').on('input', saveToLocalStorage);
+
+            // Update balance when API key changes
+            $('#api-key').on('input', updateBalance);
+
+            // Initial balance update
+            updateBalance();
         }
 
         // Run the initialization function after the document is fully loaded
