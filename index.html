@@ -429,7 +429,7 @@
                 if (body.error) {
                     throw new Error(body.error);
                 }
-                const credits = body.credits || body.balance || body.amount || 'Unknown';
+                const credits = body.credits || body.balance || body.amount || body.data?.credits || 'Unknown';
                 $('#user-input').attr('placeholder', `Balance: $${typeof credits === 'number' ? credits.toFixed(2) : credits} - Type your message...`);
             })
             .catch(error => {

@@ -25,7 +25,7 @@ exports.handler = async function(event, context) {
 
   try {
     console.log('Sending request to Unify API');
-    const response = await axios.get('https://api.unify.ai/v1/get_credits', {
+    const response = await axios.get('https://api.unify.ai/v1/billing/credits', {
       headers: {
         'accept': 'application/json',
         'Authorization': `Bearer ${api_key}`
