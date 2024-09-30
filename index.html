@@ -186,14 +186,15 @@
         #model-dropdown {
             position: absolute;
             top: 100%;
-            left: 0; /* Changed from left: 50% to left: 0 as per instruction */
-            width: 100%; /* Removed max-width property */
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 300px;
             background-color: white;
             border: 1px solid #ccc;
             border-top: none;
             z-index: 1001;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-            box-sizing: border-box; /* Ensures border is included in width calculations */
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
 
         #model-search {
@@ -727,15 +728,8 @@
 
         modelInput.on('click', function() {
             modelDropdown.show();
-            // Adjust the width of the dropdown to match the input field
-            modelDropdown.width(modelInput.outerWidth());
-            // Adjust the position of the dropdown
-            const inputOffset = modelInput.offset();
-            const inputHeight = modelInput.outerHeight();
-            modelDropdown.css({
-                top: inputOffset.top + inputHeight,
-                left: inputOffset.left
-            });
+            // Set the width of the dropdown to match the input field
+            modelDropdown.width(modelInput.outerWidth()); // Updated based on your instructions
         });
 
         $(document).on('click', function(event) {
