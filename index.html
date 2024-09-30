@@ -728,6 +728,8 @@
 
         modelInput.on('click', function() {
             modelDropdown.show();
+            // Set the width of the dropdown to match the input field
+            modelDropdown.width(modelInput.outerWidth()); // Updated based on your instructions
         });
 
         $(document).on('click', function(event) {
