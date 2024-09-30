@@ -177,6 +177,45 @@
             background-color: rgba(0, 0, 0, 0.5);
             z-index: 999;
         }
+        /* Added CSS for model selection */
+        #model-selection {
+            margin-bottom: 15px;
+        }
+
+        #model-search {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        #model-list {
+            height: 150px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            margin-bottom: 10px;
+        }
+
+        .model-option {
+            padding: 5px;
+            cursor: pointer;
+        }
+
+        .model-option:hover {
+            background-color: #f0f0f0;
+        }
+
+        .model-option.selected {
+            background-color: #e0e0e0;
+            font-weight: bold;
+        }
+
+        #model-slider {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        #model {
+            width: 100%;
+        }
     </style>
 </head>
 <body>
@@ -202,7 +241,12 @@
 <div id="overlay"></div>
 <div id="config-popup">
     <input type="password" id="api-key" placeholder="Enter your API key">
-    <input type="text" id="model" placeholder="Enter model name (e.g., claude-3.5-sonnet@anthropic)">
+    <div id="model-selection">
+        <input type="text" id="model-search" placeholder="Search models...">
+        <div id="model-list"></div>
+        <input type="range" id="model-slider" min="0" max="0" value="0">
+        <input type="text" id="model" placeholder="Selected model" readonly>
+    </div>
     <input type="text" id="system-prompt" placeholder="Enter system prompt">
     <input type="number" id="max-tokens" placeholder="Max tokens (e.g., 4096)" value="4096">
     <input type="number" id="temperature" placeholder="Temperature (0-1)" value="0" step="0.1" min="0" max="1">
@@ -213,6 +257,190 @@
 </div>
 
 <script>
+    const models = [
+        "chatgpt-4o-latest@openai",
+        "claude-3-haiku@anthropic",
+        "claude-3-haiku@aws-bedrock",
+        "claude-3-haiku@vertex-ai",
+        "claude-3-opus@anthropic",
+        "claude-3-opus@aws-bedrock",
+        "claude-3-opus@vertex-ai",
+        "claude-3-sonnet@anthropic",
+        "claude-3-sonnet@aws-bedrock",
+        "claude-3-sonnet@vertex-ai",
+        "claude-3.5-sonnet@anthropic",
+        "claude-3.5-sonnet@aws-bedrock",
+        "claude-3.5-sonnet@vertex-ai",
+        "command-r-plus@aws-bedrock",
+        "gemini-1.0-pro-001@vertex-ai",
+        "gemini-1.0-pro-002@vertex-ai",
+        "gemini-1.0-pro@vertex-ai",
+        "gemini-1.5-flash-001@vertex-ai",
+        "gemini-1.5-flash-002@vertex-ai",
+        "gemini-1.5-flash@vertex-ai",
+        "gemini-1.5-pro-001@vertex-ai",
+        "gemini-1.5-pro-002@vertex-ai",
+        "gemini-1.5-pro@vertex-ai",
+        "gemma-2-27b-it@deepinfra",
+        "gemma-2-27b-it@together-ai",
+        "gemma-2-9b-it@deepinfra",
+        "gemma-2-9b-it@groq",
+        "gemma-2-9b-it@lepton-ai",
+        "gemma-2-9b-it@together-ai",
+        "gemma-7b-it@groq",
+        "gpt-3.5-turbo@openai",
+        "gpt-4-turbo@openai",
+        "gpt-4@openai",
+        "gpt-4o-2024-05-13@azure-ai",
+        "gpt-4o-2024-05-13@openai",
+        "gpt-4o-2024-08-06@azure-ai",
+        "gpt-4o-2024-08-06@openai",
+        "gpt-4o-mini@azure-ai",
+        "gpt-4o-mini@openai",
+        "gpt-4o@azure-ai",
+        "gpt-4o@openai",
+        "llama-3-70b-chat@aws-bedrock",
+        "llama-3-70b-chat@deepinfra",
+        "llama-3-70b-chat@fireworks-ai",
+        "llama-3-70b-chat@groq",
+        "llama-3-70b-chat@lepton-ai",
+        "llama-3-70b-chat@octoai",
+        "llama-3-70b-chat@replicate",
+        "llama-3-70b-chat@together-ai",
+        "llama-3-8b-chat@aws-bedrock",
+        "llama-3-8b-chat@deepinfra",
+        "llama-3-8b-chat@fireworks-ai",
+        "llama-3-8b-chat@groq",
+        "llama-3-8b-chat@lepton-ai",
+        "llama-3-8b-chat@replicate",
+        "llama-3-8b-chat@together-ai",
+        "llama-3.1-405b-chat@aws-bedrock",
+        "llama-3.1-405b-chat@azure-ai",
+        "llama-3.1-405b-chat@deepinfra",
+        "llama-3.1-405b-chat@fireworks-ai",
+        "llama-3.1-405b-chat@lepton-ai",
+        "llama-3.1-405b-chat@octoai",
+        "llama-3.1-405b-chat@replicate",
+        "llama-3.1-405b-chat@together-ai",
+        "llama-3.1-405b-chat@vertex-ai",
+        "llama-3.1-70b-chat@aws-bedrock",
+        "llama-3.1-70b-chat@azure-ai",
+        "llama-3.1-70b-chat@deepinfra",
+        "llama-3.1-70b-chat@fireworks-ai",
+        "llama-3.1-70b-chat@groq",
+        "llama-3.1-70b-chat@lepton-ai",
+        "llama-3.1-70b-chat@octoai",
+        "llama-3.1-70b-chat@perplexity-ai",
+        "llama-3.1-70b-chat@together-ai",
+        "llama-3.1-70b-chat@vertex-ai",
+        "llama-3.1-8b-chat@aws-bedrock",
+        "llama-3.1-8b-chat@azure-ai",
+        "llama-3.1-8b-chat@deepinfra",
+        "llama-3.1-8b-chat@fireworks-ai",
+        "llama-3.1-8b-chat@groq",
+        "llama-3.1-8b-chat@lepton-ai",
+        "llama-3.1-8b-chat@octoai",
+        "llama-3.1-8b-chat@perplexity-ai",
+        "llama-3.1-8b-chat@together-ai",
+        "llama-3.1-8b-chat@vertex-ai",
+        "llama-3.2-11b-chat@deepinfra",
+        "llama-3.2-11b-chat@fireworks-ai",
+        "llama-3.2-11b-chat@together-ai",
+        "llama-3.2-11b-chat@vertex-ai",
+        "llama-3.2-1b-chat@deepinfra",
+        "llama-3.2-1b-chat@fireworks-ai",
+        "llama-3.2-3b-chat@deepinfra",
+        "llama-3.2-3b-chat@fireworks-ai",
+        "llama-3.2-3b-chat@together-ai",
+        "llama-3.2-90b-chat@deepinfra",
+        "llama-3.2-90b-chat@fireworks-ai",
+        "llama-3.2-90b-chat@together-ai",
+        "llama-3.2-90b-chat@vertex-ai",
+        "mistral-7b-instruct-v0.2@aws-bedrock",
+        "mistral-7b-instruct-v0.3@deepinfra",
+        "mistral-7b-instruct-v0.3@lepton-ai",
+        "mistral-7b-instruct-v0.3@mistral-ai",
+        "mistral-7b-instruct-v0.3@together-ai",
+        "mistral-large@aws-bedrock",
+        "mistral-large@mistral-ai",
+        "mistral-large@vertex-ai",
+        "mistral-nemo@deepinfra",
+        "mistral-nemo@fireworks-ai",
+        "mistral-nemo@lepton-ai",
+        "mistral-nemo@mistral-ai",
+        "mistral-nemo@vertex-ai",
+        "mistral-small@mistral-ai",
+        "mixtral-8x22b-instruct-v0.1@fireworks-ai",
+        "mixtral-8x22b-instruct-v0.1@mistral-ai",
+        "mixtral-8x22b-instruct-v0.1@together-ai",
+        "mixtral-8x7b-instruct-v0.1@aws-bedrock",
+        "mixtral-8x7b-instruct-v0.1@deepinfra",
+        "mixtral-8x7b-instruct-v0.1@fireworks-ai",
+        "mixtral-8x7b-instruct-v0.1@groq",
+        "mixtral-8x7b-instruct-v0.1@lepton-ai",
+        "mixtral-8x7b-instruct-v0.1@mistral-ai",
+        "mixtral-8x7b-instruct-v0.1@octoai",
+        "mixtral-8x7b-instruct-v0.1@replicate",
+        "mixtral-8x7b-instruct-v0.1@together-ai",
+        "o1-mini@openai",
+        "o1-preview@openai",
+        "qwen-2-72b-instruct@deepinfra",
+        "qwen-2-72b-instruct@lepton-ai",
+        "qwen-2-72b-instruct@together-ai",
+        "qwen-2-7b-instruct@deepinfra",
+        "qwen-2.5-14b-instruct@fireworks-ai",
+        "qwen-2.5-72b-instruct@deepinfra",
+        "qwen-2.5-72b-instruct@fireworks-ai",
+        "qwen-2.5-7b-instruct@fireworks-ai"
+    ];
+
+    function initializeModelSelection() {
+        const modelList = $('#model-list');
+        const modelSlider = $('#model-slider');
+        const modelInput = $('#model');
+        const modelSearch = $('#model-search');
+
+        // Populate model list
+        models.forEach((model, index) => {
+            modelList.append(`<div class="model-option" data-index="${index}">${model}</div>`);
+        });
+
+        // Set up slider
+        modelSlider.attr('max', models.length - 1);
+
+        // Update selected model when slider changes
+        modelSlider.on('input', function() {
+            const selectedIndex = parseInt($(this).val());
+            updateSelectedModel(selectedIndex);
+        });
+
+        // Update selected model when clicking on a model option
+        modelList.on('click', '.model-option', function() {
+            const selectedIndex = $(this).data('index');
+            modelSlider.val(selectedIndex);
+            updateSelectedModel(selectedIndex);
+        });
+
+        // Filter models based on search input
+        modelSearch.on('input', function() {
+            const searchTerm = $(this).val().toLowerCase();
+            $('.model-option').each(function() {
+                const modelName = $(this).text().toLowerCase();
+                $(this).toggle(modelName.includes(searchTerm));
+            });
+        });
+
+        // Initialize with the first model
+        updateSelectedModel(0);
+    }
+
+    function updateSelectedModel(index) {
+        const selectedModel = models[index];
+        $('#model').val(selectedModel);
+        $('.model-option').removeClass('selected');
+        $(`.model-option[data-index="${index}"]`).addClass('selected');
+    }
+
     let conversations = [];
     let currentConversationId = null;
 
@@ -554,6 +782,9 @@
                 sendMessage();
             }
         });
+
+        // Initialize model selection functionality
+        initializeModelSelection();
     }
 
     $(document).ready(initializeApp);
