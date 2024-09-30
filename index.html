@@ -177,36 +177,41 @@
             background-color: rgba(0, 0, 0, 0.5);
             z-index: 999;
         }
+
         /* Updated CSS for model selection dropdown */
+        #model {
+            position: relative;
+        }
+
         #model-dropdown {
             position: absolute;
+            top: 100%;
             left: 50%;
             transform: translateX(-50%);
             width: 100%;
             max-width: 300px;
-            max-height: 200px;
-            overflow-y: auto;
             background-color: white;
             border: 1px solid #ccc;
+            border-top: none;
             z-index: 1001;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
 
         #model-search {
             width: 100%;
-            padding: 5px;
+            padding: 10px;
             box-sizing: border-box;
             border: none;
             border-bottom: 1px solid #ccc;
         }
 
         #model-list {
-            max-height: 150px;
+            max-height: 200px;
             overflow-y: auto;
         }
 
         .model-option {
-            padding: 5px;
+            padding: 10px;
             cursor: pointer;
         }
 
@@ -243,10 +248,12 @@
 <div id="overlay"></div>
 <div id="config-popup">
     <input type="password" id="api-key" placeholder="Enter your API key">
-    <input type="text" id="model" placeholder="Select a model" readonly>
-    <div id="model-dropdown" style="display: none;">
-        <input type="text" id="model-search" placeholder="Search models...">
-        <div id="model-list"></div>
+    <div style="position: relative;">
+        <input type="text" id="model" placeholder="Select a model" readonly>
+        <div id="model-dropdown" style="display: none;">
+            <input type="text" id="model-search" placeholder="Search models...">
+            <div id="model-list"></div>
+        </div>
     </div>
     <input type="text" id="system-prompt" placeholder="Enter system prompt">
     <input type="number" id="max-tokens" placeholder="Max tokens (e.g., 4096)" value="4096">
