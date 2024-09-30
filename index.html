@@ -54,13 +54,38 @@
             height: 150px;
             display: flex;
             flex-direction: column;
+            position: relative;
+        }
+        #input-wrapper {
+            display: flex;
+            height: 100px;
         }
         #user-input {
-            width: 100%;
-            height: 100px;
+            flex-grow: 1;
             resize: none;
-            margin-bottom: 10px;
             padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-right: none;
+            border-radius: 5px 0 0 5px;
+        }
+        #send-button {
+            width: 80px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            border-radius: 0 5px 5px 0;
+        }
+        #send-button:hover {
+            background-color: #45a049;
+        }
+        #credits-display {
+            position: absolute;
+            right: 10px;
+            top: 110px;
+            font-weight: bold;
         }
         .conversation-item {
             cursor: pointer;
@@ -120,12 +145,6 @@
             margin-bottom: 10px;
             width: 100%;
         }
-        #credits-display {
-            position: absolute;
-            right: 10px;
-            top: 10px;
-            font-weight: bold;
-        }
     </style>
 </head>
 <body>
@@ -138,8 +157,10 @@
         <div id="chat-area">
             <div id="chat-container"></div>
             <div id="user-input-container">
-                <textarea id="user-input" placeholder="Please set a name for this conversation"></textarea>
-                <button id="send-button" onclick="handleUserAction()">Next</button>
+                <div id="input-wrapper">
+                    <textarea id="user-input" placeholder="Please set a name for this conversation"></textarea>
+                    <button id="send-button" onclick="handleUserAction()">Next</button>
+                </div>
                 <div id="credits-display"></div>
             </div>
         </div>
@@ -369,14 +390,12 @@
             }
             $('#user-input').val('');
 
-            // Get the current conversation
             const conversation = conversations.find(conv => conv.id === currentConversationId);
             if (!conversation) {
                 console.error('No active conversation');
                 return;
             }
 
-            // Prepare messages array with system prompt and conversation history
             const messages = [
                 {"role": "system", "content": systemPrompt},
                 ...conversation.messages,
@@ -407,7 +426,6 @@
                 const aiMessage = data.choices[0].message.content.trim();
                 appendMessage('assistant', aiMessage);
 
-                // Update conversation history
                 if (!isRegenerate) {
                     conversation.messages.push({role: 'user', content: userMessage});
                 }
@@ -415,7 +433,7 @@
                 updateConversationList();
                 saveToLocalStorage();
                 updateCreditsAfterResponse();
-                updateInputPlaceholder();  // Add this line
+                updateInputPlaceholder();
             })
             .catch(error => {
                 console.error('Error:', error);
@@ -529,17 +547,11 @@
 
             updateInputPlaceholder();
 
-            // Save configuration when inputs change
             $('#api-key, #model, #system-prompt, #max-tokens, #temperature').on('input', saveToLocalStorage);
-
-            // Fetch credits when API key changes
             $('#api-key').on('input', fetchCredits);
-
-            // Initial fetch of credits
             fetchCredits();
         }
 
-        // Run the initialization function after the document is fully loaded
         $(document).ready(initializeApp);
     </script>
 </body>
