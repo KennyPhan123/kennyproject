@@ -138,10 +138,13 @@
             width: 80%;
             max-width: 500px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: center;
         }
         #config-popup input, #config-popup button {
             margin-bottom: 15px;
-            width: 100%;
+            max-width: 300px;
+            margin-left: auto;
+            margin-right: auto;
             padding: 10px;
             font-size: 16px;
         }
@@ -152,6 +155,16 @@
         .conversation-item.active {
             background-color: #d0d0d0;
             font-weight: bold;
+        }
+        #overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 999;
         }
     </style>
 </head>
@@ -175,6 +188,7 @@
     <button onclick="toggleSidebar()">Toggle Sidebar</button>
     <button onclick="showConfigPopup()">Config</button>
 </div>
+<div id="overlay"></div> <!-- New overlay element -->
 <div id="config-popup">
     <input type="password" id="api-key" placeholder="Enter your API key">
     <input type="text" id="model" placeholder="Enter model name (e.g., claude-3.5-sonnet@anthropic)">
@@ -460,12 +474,14 @@
 
     function showConfigPopup() {
         $('#config-popup').show();
-        $('body > *:not(#config-popup)').addClass('blur-background');
+        $('#overlay').show(); // Show overlay
+        $('body > *:not(#config-popup):not(#overlay)').addClass('blur-background'); // Blur background elements
     }
 
     function closeConfigPopup() {
         $('#config-popup').hide();
-        $('body > *').removeClass('blur-background');
+        $('#overlay').hide(); // Hide overlay
+        $('body > *').removeClass('blur-background'); // Remove background blur
     }
 
     function saveConfig() {
@@ -502,6 +518,14 @@
 
         // Initial fetch of credits
         fetchCredits();
+
+        // Add keyboard shortcuts for sending messages
+        $('#user-input').on('keydown', function(e) {
+            if ((e.ctrlKey || e.shiftKey) && e.keyCode === 13) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
     }
 
     $(document).ready(initializeApp);
