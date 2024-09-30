@@ -120,10 +120,16 @@
             margin-bottom: 10px;
             width: 100%;
         }
-        #credits-display {
+        #balance-note {
             position: absolute;
             right: 10px;
             top: 10px;
+            font-weight: bold;
+        }
+        #credits-display {
+            position: absolute;
+            right: 10px;
+            top: 30px; /* Adjust top to give space for "Account balance" note */
             font-weight: bold;
         }
     </style>
@@ -140,6 +146,7 @@
             <div id="user-input-container">
                 <textarea id="user-input" placeholder="Type your message... (Enter for new line)"></textarea>
                 <button onclick="sendMessage()">Send</button>
+                <div id="balance-note">Account balance:</div>
                 <div id="credits-display"></div>
             </div>
         </div>
@@ -165,7 +172,7 @@
         function escapeHtml(unsafe) {
             return unsafe
                  .replace(/&/g, "&amp;")
-                 .replace(/</g, "&lt;")
+                 .replace(/<//g, "&lt;")
                  .replace(/>/g, "&gt;")
                  .replace(/"/g, "&quot;")
                  .replace(/'/g, "&#039;");
