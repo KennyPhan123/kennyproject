@@ -188,12 +188,11 @@
 <script>
     let conversations = [];
     let currentConversationId = null;
-    let currentState = 'new_conversation';
 
     function escapeHtml(unsafe) {
         return unsafe
             .replace(/&/g, "&amp;")
-            .replace(/<//g, "&lt;")
+            .replace(/</g, "&lt;")
             .replace(/>/g, "&gt;")
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&#039;");
@@ -484,50 +483,8 @@
         }
     }
 
-    function handleUserAction() {
-        const inputValue = $('#user-input').val().trim();
-        switch (currentState) {
-            case 'new_conversation':
-                if (inputValue) {
-                    handleNewConversation(inputValue);
-                } else {
-                    alert("Please enter a name for the conversation.");
-                }
-                break;
-            case 'api_key':
-                if (inputValue) {
-                    handleApiKey(inputValue);
-                } else {
-                    alert("Please enter your API key.");
-                }
-                break;
-            case 'chat':
-                sendMessage();
-                break;
-        }
-    }
-
-    function handleNewConversation(name) {
-        currentConversationId = Date.now();
-        conversations.push({id: currentConversationId, name: name, messages: []});
-        updateConversationList();
-        clearChatContainer();
-        saveToLocalStorage();
-        currentState = 'api_key';
-        updateInputPlaceholder();
-    }
-
-    function handleApiKey(apiKey) {
-        $('#api-key').val(apiKey);
-        saveToLocalStorage();
-        fetchCredits();
-        currentState = 'chat';
-        updateInputPlaceholder();
-    }
-
     function initializeApp() {
         loadFromLocalStorage();
-        updateConversationList();
         if (conversations.length === 0) {
             newConversation();
         } else if (currentConversationId) {
@@ -535,6 +492,7 @@
         } else {
             loadConversation(conversations[0].id);
         }
+        updateConversationList();
 
         // Save configuration when inputs change
         $('#api-key, #model, #system-prompt, #max-tokens, #temperature').on('input', saveToLocalStorage);
