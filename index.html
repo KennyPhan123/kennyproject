@@ -180,18 +180,24 @@
         /* Updated CSS for model selection dropdown */
         #model-dropdown {
             position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
             width: 100%;
+            max-width: 300px;
             max-height: 200px;
             overflow-y: auto;
             background-color: white;
             border: 1px solid #ccc;
             z-index: 1001;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
         }
 
         #model-search {
             width: 100%;
             padding: 5px;
             box-sizing: border-box;
+            border: none;
+            border-bottom: 1px solid #ccc;
         }
 
         #model-list {
