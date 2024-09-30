@@ -389,52 +389,38 @@
         "qwen-2.5-7b-instruct@fireworks-ai"
     ];
 
-    function initializeModelSelection() {
-        const modelInput = $('#model');
-        const modelDropdown = $('#model-dropdown');
-        const modelList = $('#model-list');
-        const modelSearch = $('#model-search');
+    let conversations = [];
+    let currentConversationId = null;
 
-        // Populate model list
-        models.forEach((model, index) => {
-            modelList.append(`<div class="model-option" data-index="${index}">${model}</div>`);
-        });
+    function escapeHtml(unsafe) {
+        return unsafe
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
 
-        // Show dropdown when clicking on the model input
-        modelInput.on('click', function() {
-            modelDropdown.show();
-        });
+    function unescapeHtml(safe) {
+        return safe
+            .replace(/&amp;/g, "&")
+            .replace(/&lt;/g, "<")
+            .replace(/&gt;/g, ">")
+            .replace(/&quot;/g, "\"")
+            .replace(/&#039;/g, "'");
+    }
 
-        // Hide dropdown when clicking outside
-        $(document).on('click', function(event) {
-            if (!$(event.target).closest('#model, #model-dropdown').length) {
-                modelDropdown.hide();
-            }
-        });
-
-        // Update selected model when clicking on a model option
-        modelList.on('click', '.model-option', function() {
-            const selectedModel = $(this).text();
-            modelInput.val(selectedModel);
-            modelDropdown.hide();
-            saveToLocalStorage();
-        });
-
-        // Filter models based on search input
-        modelSearch.on('input', function() {
-            const searchTerm = $(this).val().toLowerCase();
-            $('.model-option').each(function() {
-                const modelName = $(this).text().toLowerCase();
-                $(this).toggle(modelName.includes(searchTerm));
-            });
-        });
-
-        // Initialize with the saved model or the first model
-        const savedModel = localStorage.getItem('model');
-        if (savedModel && models.includes(savedModel)) {
-            modelInput.val(savedModel);
-        } else {
-            modelInput.val(models[0]);
+    function saveToLocalStorage() {
+        try {
+            localStorage.setItem('conversations', JSON.stringify(conversations));
+            localStorage.setItem('currentConversationId', currentConversationId);
+            localStorage.setItem('apiKey', $('#api-key').val());
+            localStorage.setItem('model', $('#model').val());
+            localStorage.setItem('systemPrompt', $('#system-prompt').val());
+            localStorage.setItem('maxTokens', $('#max-tokens').val());
+            localStorage.setItem('temperature', $('#temperature').val());
+        } catch (error) {
+            console.error('Error saving to localStorage:', error);
         }
     }
 
@@ -460,11 +446,351 @@
         }
     }
 
-    // Rest of the logic for managing conversations, sending messages, API communication, etc.
+    function toggleSidebar() {
+        $('#sidebar').toggleClass('hidden');
+    }
+
+    function newConversation() {
+        const name = `Conversation ${conversations.length + 1}`;
+        currentConversationId = Date.now();
+        conversations.push({
+            id: currentConversationId,
+            name: name,
+            messages: []
+        });
+        updateConversationList();
+        clearChatContainer();
+        saveToLocalStorage();
+    }
+
+    function updateConversationList() {
+        $('#conversation-list').empty();
+        conversations.forEach(conv => {
+            const isActive = conv.id === currentConversationId;
+            $('#conversation-list').append(`
+                <div class="conversation-item ${isActive ? 'active' : ''}" data-id="${conv.id}">
+                    <span class="conversation-name">${escapeHtml(conv.name)}</span>
+                    <div class="conversation-actions">
+                        <button class="rename-btn">Rename</button>
+                        <button class="delete-btn">Delete</button>
+                    </div>
+                </div>
+            `);
+        });
+    }
+
+    function renameConversation(id) {
+        const conversation = conversations.find(conv => conv.id === id);
+        if (conversation) {
+            const newName = prompt("Enter a new name for the conversation:", conversation.name);
+            if (newName) {
+                conversation.name = newName;
+                updateConversationList();
+                saveToLocalStorage();
+            }
+        }
+    }
+
+    function deleteConversation(id) {
+        if (confirm("Are you sure you want to delete this conversation?")) {
+            conversations = conversations.filter(conv => conv.id !== id);
+            updateConversationList();
+            if (currentConversationId === id) {
+                currentConversationId = null;
+                clearChatContainer();
+            }
+            saveToLocalStorage();
+        }
+    }
+
+    function loadConversation(id) {
+        currentConversationId = id;
+        clearChatContainer();
+        const conversation = conversations.find(conv => conv.id === id);
+        if (conversation) {
+            conversation.messages.forEach(msg => {
+                appendMessage(msg.role, msg.content);
+            });
+        }
+        updateConversationList();
+        saveToLocalStorage();
+    }
+
+    function clearChatContainer() {
+        $('#chat-container').empty();
+    }
+
+    function appendMessage(role, content) {
+        const escapedContent = escapeHtml(content);
+        const displayRole = role.toLowerCase() === 'user' ? 'You' : $('#model').val().split('@')[0];
+        const messageHtml = `
+            <div class="message">
+                <strong>${displayRole}:</strong>
+                <pre>${escapedContent}</pre>
+                ${role.toLowerCase() !== 'user' ? '<button class="copy-btn">Copy</button>' : ''}
+                ${role.toLowerCase() !== 'user' ? '<button class="regenerate-btn">Regenerate</button>' : ''}
+            </div>
+        `;
+        $('#chat-container').append(messageHtml);
+        $('#chat-container').scrollTop($('#chat-container')[0].scrollHeight);
+    }
+
+    function copyToClipboard(button) {
+        const escapedContent = $(button).siblings('pre').text();
+        const content = unescapeHtml(escapedContent);
+        navigator.clipboard.writeText(content).then(() => {
+            alert('Copied to clipboard!');
+        });
+    }
+
+    function regenerateResponse(button) {
+        const escapedUserMessage = $(button).closest('.message').prev().find('pre').text();
+        const userMessage = unescapeHtml(escapedUserMessage);
+        $('#user-input').val(userMessage);
+        sendMessage(true);
+    }
+
+    function fetchCredits() {
+        var apiKey = $('#api-key').val();
+        if (!apiKey) {
+            updateInputPlaceholder();
+            return;
+        }
+
+        fetch('/.netlify/functions/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'getCredits',
+                api_key: apiKey
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.credits !== undefined) {
+                updateInputPlaceholder(data.credits);
+            } else {
+                throw new Error('Failed to fetch credits');
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching credits:', error);
+            updateInputPlaceholder();
+        });
+    }
+
+    function updateInputPlaceholder(credits) {
+        if (credits !== undefined) {
+            $('#user-input').attr('placeholder', `Type your message here (Account balance: $${credits.toFixed(6)})`);
+        } else {
+            $('#user-input').attr('placeholder', 'Type your message here');
+        }
+    }
+
+    function updateCreditsAfterResponse() {
+        setTimeout(fetchCredits, 1000);
+    }
+
+    function sendMessage(isRegenerate = false) {
+        if (!currentConversationId) {
+            newConversation();
+        }
+
+        var apiKey = $('#api-key').val();
+        var model = $('#model').val();
+        var userMessage = $('#user-input').val();
+        var maxTokens = $('#max-tokens').val();
+        var temperature = $('#temperature').val();
+        var systemPrompt = $('#system-prompt').val();
+
+        if (!apiKey || !model || !userMessage) {
+            alert("Please enter API key, model, and message.");
+            return;
+        }
+
+        if (!isRegenerate) {
+            appendMessage('user', userMessage);
+        }
+        $('#user-input').val('');
+
+        const conversation = conversations.find(conv => conv.id === currentConversationId);
+        if (!conversation) {
+            console.error('No active conversation');
+            return;
+        }
+
+        const messages = [{
+                "role": "system",
+                "content": systemPrompt
+            },
+            ...conversation.messages,
+            {
+                "role": "user",
+                "content": userMessage
+            }
+        ];
+
+        fetch('/.netlify/functions/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'chat',
+                    api_key: apiKey,
+                    model: model,
+                    messages: messages,
+                    max_tokens: parseInt(maxTokens),
+                    temperature: parseFloat(temperature)
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                const aiMessage = data.choices[0].message.content.trim();
+                appendMessage('assistant', aiMessage);
+
+                if (!isRegenerate) {
+                    conversation.messages.push({
+                        role: 'user',
+                        content: userMessage
+                    });
+                }
+                conversation.messages.push({
+                    role: 'assistant',
+                    content: aiMessage
+                });
+                updateConversationList();
+                saveToLocalStorage();
+                updateCreditsAfterResponse();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                appendMessage('Error', `An error occurred while fetching the response: ${error.message}`);
+            });
+    }
+
+    function showConfigPopup() {
+        $('#config-popup').show();
+        $('#overlay').show();
+        $('body > *:not(#config-popup):not(#overlay)').addClass('blur-background');
+    }
+
+    function closeConfigPopup() {
+        $('#config-popup').hide();
+        $('#overlay').hide();
+        $('body > *').removeClass('blur-background');
+    }
+
+    function saveConfig() {
+        saveToLocalStorage();
+        closeConfigPopup();
+    }
+
+    function deleteAllConversations() {
+        if (confirm("Are you sure you want to delete all conversations?")) {
+            conversations = [];
+            currentConversationId = null;
+            updateConversationList();
+            clearChatContainer();
+            saveToLocalStorage();
+        }
+    }
+
+    function initializeModelSelection() {
+        const modelInput = $('#model');
+        const modelDropdown = $('#model-dropdown');
+        const modelList = $('#model-list');
+        const modelSearch = $('#model-search');
+
+        models.forEach((model, index) => {
+            modelList.append(`<div class="model-option" data-index="${index}">${model}</div>`);
+        });
+
+        modelInput.on('click', function() {
+            modelDropdown.show();
+        });
+
+        $(document).on('click', function(event) {
+            if (!$(event.target).closest('#model, #model-dropdown').length) {
+                modelDropdown.hide();
+            }
+        });
+
+        modelList.on('click', '.model-option', function() {
+            const selectedModel = $(this).text();
+            modelInput.val(selectedModel);
+            modelDropdown.hide();
+            saveToLocalStorage();
+        });
+
+        modelSearch.on('input', function() {
+            const searchTerm = $(this).val().toLowerCase();
+            $('.model-option').each(function() {
+                const modelName = $(this).text().toLowerCase();
+                $(this).toggle(modelName.includes(searchTerm));
+            });
+        });
+
+        const savedModel = localStorage.getItem('model');
+        if (savedModel && models.includes(savedModel)) {
+            modelInput.val(savedModel);
+        } else {
+            modelInput.val(models[0]);
+        }
+    }
+
+    function initializeApp() {
+        loadFromLocalStorage();
+        if (conversations.length === 0) {
+            newConversation();
+        } else if (currentConversationId) {
+            loadConversation(parseInt(currentConversationId));
+        } else {
+            loadConversation(conversations[0].id);
+        }
+        updateConversationList();
+
+        $('#api-key, #model, #system-prompt, #max-tokens, #temperature').on('input', saveToLocalStorage);
+        $('#api-key').on('input', fetchCredits);
+        fetchCredits();
+
+        $('#user-input').on('keydown', function (e) {
+            if ((e.ctrlKey || e.shiftKey) && e.keyCode === 13) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        $('#send-button').on('click', sendMessage);
+        $('#conversation-list').on('click', '.conversation-item', function() {
+            loadConversation(parseInt($(this).data('id')));
+        });
+        $('#conversation-list').on('click', '.rename-btn', function(e) {
+            e.stopPropagation();
+            renameConversation(parseInt($(this).closest('.conversation-item').data('id')));
+        });
+        $('#conversation-list').on('click', '.delete-btn', function(e) {
+            e.stopPropagation();
+            deleteConversation(parseInt($(this).closest('.conversation-item').data('id')));
+        });
+        $('#chat-container').on('click', '.copy-btn', function() {
+            copyToClipboard(this);
+        });
+        $('#chat-container').on('click', '.regenerate-btn', function() {
+            regenerateResponse(this);
+        });
+    }
 
     $(document).ready(function() {
         initializeApp();
-        initializeModelSelection();  // Initialize the model selection dropdown
+        initializeModelSelection();
     });
 </script>
 </body>
