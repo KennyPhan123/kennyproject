@@ -376,7 +376,7 @@
 
     function updateInputPlaceholder(credits) {
         if (credits !== undefined) {
-            $('#user-input').attr('placeholder', `Type your message here (Account balance: $${credits.toFixed(2)})`);
+            $('#user-input').attr('placeholder', `Type your message here (Account balance: $${credits.toFixed(6)})`);
         } else {
             $('#user-input').attr('placeholder', 'Type your message here');
         }
