@@ -84,7 +84,7 @@
         #credits-display {
             position: absolute;
             right: 10px;
-            top: 110px;
+            bottom: 10px;
             font-weight: bold;
         }
         .conversation-item {
@@ -337,7 +337,6 @@
             var apiKey = $('#api-key').val();
             if (!apiKey) {
                 $('#credits-display').text('');
-                updateInputPlaceholder();
                 return;
             }
 
@@ -354,17 +353,15 @@
             .then(response => response.json())
             .then(data => {
                 if (data.credits !== undefined) {
-                    const creditsText = `${data.credits.toFixed(2)}`;
+                    const creditsText = `Account balance: $${data.credits.toFixed(2)}`;
                     $('#credits-display').text(creditsText);
-                    updateInputPlaceholder();
                 } else {
                     throw new Error('Failed to fetch credits');
                 }
             })
             .catch(error => {
                 console.error('Error fetching credits:', error);
-                $('#credits-display').text('Error');
-                updateInputPlaceholder();
+                $('#credits-display').text('Error fetching account balance');
             });
         }
 
@@ -433,7 +430,6 @@
                 updateConversationList();
                 saveToLocalStorage();
                 updateCreditsAfterResponse();
-                updateInputPlaceholder();
             })
             .catch(error => {
                 console.error('Error:', error);
@@ -465,12 +461,21 @@
         }
 
         function handleUserAction() {
+            const inputValue = $('#user-input').val().trim();
             switch (currentState) {
                 case 'new_conversation':
-                    handleNewConversation();
+                    if (inputValue) {
+                        handleNewConversation(inputValue);
+                    } else {
+                        alert("Please enter a name for the conversation.");
+                    }
                     break;
                 case 'api_key':
-                    handleApiKey();
+                    if (inputValue) {
+                        handleApiKey(inputValue);
+                    } else {
+                        alert("Please enter your API key.");
+                    }
                     break;
                 case 'chat':
                     sendMessage();
@@ -478,32 +483,22 @@
             }
         }
 
-        function handleNewConversation() {
-            const name = $('#user-input').val().trim();
-            if (name) {
-                currentConversationId = Date.now();
-                conversations.push({id: currentConversationId, name: name, messages: []});
-                updateConversationList();
-                clearChatContainer();
-                saveToLocalStorage();
-                currentState = 'api_key';
-                updateInputPlaceholder();
-            } else {
-                alert("Please enter a name for the conversation.");
-            }
+        function handleNewConversation(name) {
+            currentConversationId = Date.now();
+            conversations.push({id: currentConversationId, name: name, messages: []});
+            updateConversationList();
+            clearChatContainer();
+            saveToLocalStorage();
+            currentState = 'api_key';
+            updateInputPlaceholder();
         }
 
-        function handleApiKey() {
-            const apiKey = $('#user-input').val().trim();
-            if (apiKey) {
-                $('#api-key').val(apiKey);
-                saveToLocalStorage();
-                fetchCredits();
-                currentState = 'chat';
-                updateInputPlaceholder();
-            } else {
-                alert("Please enter your API key.");
-            }
+        function handleApiKey(apiKey) {
+            $('#api-key').val(apiKey);
+            saveToLocalStorage();
+            fetchCredits();
+            currentState = 'chat';
+            updateInputPlaceholder();
         }
 
         function updateInputPlaceholder() {
@@ -517,7 +512,7 @@
                     $('#send-button').text('Set API Key');
                     break;
                 case 'chat':
-                    $('#user-input').attr('placeholder', `Type your message (Account balance: $${$('#credits-display').text()})`);
+                    $('#user-input').attr('placeholder', 'Type your message');
                     $('#send-button').text('Send');
                     break;
             }
