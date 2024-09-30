@@ -186,15 +186,14 @@
         #model-dropdown {
             position: absolute;
             top: 100%;
-            left: 50%;
-            transform: translateX(-50%);
+            left: 0;
             width: 100%;
-            max-width: 300px;
             background-color: white;
             border: 1px solid #ccc;
             border-top: none;
             z-index: 1001;
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            box-sizing: border-box;
         }
 
         #model-search {
@@ -727,9 +726,7 @@
         });
 
         modelInput.on('click', function() {
-            modelDropdown.show();
-            // Set the width of the dropdown to match the input field
-            modelDropdown.width(modelInput.outerWidth()); // Updated based on your instructions
+            modelDropdown.toggle();
         });
 
         $(document).on('click', function(event) {
