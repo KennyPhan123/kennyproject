@@ -53,12 +53,7 @@
             flex-shrink: 0;
             height: 150px;
             display: flex;
-            flex-direction: column;
             position: relative;
-        }
-        #input-wrapper {
-            display: flex;
-            height: 100px;
         }
         #user-input {
             flex-grow: 1;
@@ -148,271 +143,276 @@
     </style>
 </head>
 <body>
-    <div id="sidebar">
-        <div id="conversation-list"></div>
-        <button onclick="newConversation()">New Conversation</button>
-        <button onclick="deleteAllConversations()">Delete All Conversations</button>
-    </div>
-    <div id="main-content">
-        <div id="chat-area">
-            <div id="chat-container"></div>
-            <div id="user-input-container">
-                <div id="input-wrapper">
-                    <textarea id="user-input" placeholder="Please set a name for this conversation"></textarea>
-                    <button id="send-button" onclick="handleUserAction()">Next</button>
-                </div>
-                <div id="credits-display"></div>
-            </div>
+<div id="sidebar">
+    <div id="conversation-list"></div>
+    <button onclick="newConversation()">New Conversation</button>
+    <button onclick="deleteAllConversations()">Delete All Conversations</button>
+</div>
+<div id="main-content">
+    <div id="chat-area">
+        <div id="chat-container"></div>
+        <div id="user-input-container">
+            <textarea id="user-input" placeholder="Type your message here"></textarea>
+            <button id="send-button" onclick="sendMessage()">Send</button>
         </div>
+        <div id="credits-display"></div>
     </div>
-    <div id="toggle-buttons">
-        <button onclick="toggleSidebar()">Toggle Sidebar</button>
-        <button onclick="showConfigPopup()">Config</button>
-    </div>
-    <div id="config-popup">
-        <input type="password" id="api-key" placeholder="Enter your API key">
-        <input type="text" id="model" placeholder="Enter model name (e.g., claude-3.5-sonnet@anthropic)">
-        <input type="text" id="system-prompt" placeholder="Enter system prompt">
-        <input type="number" id="max-tokens" placeholder="Max tokens (e.g., 4096)" value="4096">
-        <input type="number" id="temperature" placeholder="Temperature (0-1)" value="0" step="0.1" min="0" max="1">
-        <button onclick="saveConfig()">Save</button>
-        <button onclick="closeConfigPopup()">Close</button>
-    </div>
+</div>
+<div id="toggle-buttons">
+    <button onclick="toggleSidebar()">Toggle Sidebar</button>
+    <button onclick="showConfigPopup()">Config</button>
+</div>
+<div id="config-popup">
+    <input type="password" id="api-key" placeholder="Enter your API key">
+    <input type="text" id="model" placeholder="Enter model name (e.g., claude-3.5-sonnet@anthropic)">
+    <input type="text" id="system-prompt" placeholder="Enter system prompt">
+    <input type="number" id="max-tokens" placeholder="Max tokens (e.g., 4096)" value="4096">
+    <input type="number" id="temperature" placeholder="Temperature (0-1)" value="0" step="0.1" min="0" max="1">
+    <button onclick="saveConfig()">Save</button>
+    <button onclick="closeConfigPopup()">Close</button>
+</div>
 
-    <script>
-        let conversations = [];
-        let currentConversationId = null;
-        let currentState = 'new_conversation';
+<script>
+    let conversations = [];
+    let currentConversationId = null;
+    let currentState = 'new_conversation';
 
-        function escapeHtml(unsafe) {
-            return unsafe
-                 .replace(/&/g, "&amp;")
-                 .replace(/</g, "&lt;")
-                 .replace(/>/g, "&gt;")
-                 .replace(/"/g, "&quot;")
-                 .replace(/'/g, "&#039;");
+    function escapeHtml(unsafe) {
+        return unsafe
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    function unescapeHtml(safe) {
+        return safe
+            .replace(/&amp;/g, "&")
+            .replace(/&lt;/g, "<")
+            .replace(/&gt;/g, ">")
+            .replace(/&quot;/g, "\"")
+            .replace(/&#039;/g, "'");
+    }
+
+    function saveToLocalStorage() {
+        try {
+            localStorage.setItem('conversations', JSON.stringify(conversations));
+            localStorage.setItem('currentConversationId', currentConversationId);
+            localStorage.setItem('apiKey', $('#api-key').val());
+            localStorage.setItem('model', $('#model').val());
+            localStorage.setItem('systemPrompt', $('#system-prompt').val());
+            localStorage.setItem('maxTokens', $('#max-tokens').val());
+            localStorage.setItem('temperature', $('#temperature').val());
+        } catch (error) {
+            console.error('Error saving to localStorage:', error);
         }
+    }
 
-        function unescapeHtml(safe) {
-            return safe
-                 .replace(/&amp;/g, "&")
-                 .replace(/&lt;/g, "<")
-                 .replace(/&gt;/g, ">")
-                 .replace(/&quot;/g, "\"")
-                 .replace(/&#039;/g, "'");
-        }
-
-        function saveToLocalStorage() {
-            try {
-                localStorage.setItem('conversations', JSON.stringify(conversations));
-                localStorage.setItem('currentConversationId', currentConversationId);
-                localStorage.setItem('apiKey', $('#api-key').val());
-                localStorage.setItem('model', $('#model').val());
-                localStorage.setItem('systemPrompt', $('#system-prompt').val());
-                localStorage.setItem('maxTokens', $('#max-tokens').val());
-                localStorage.setItem('temperature', $('#temperature').val());
-            } catch (error) {
-                console.error('Error saving to localStorage:', error);
-            }
-        }
-
-        function loadFromLocalStorage() {
-            try {
-                const savedConversations = localStorage.getItem('conversations');
-                if (savedConversations) {
-                    conversations = JSON.parse(savedConversations);
-                    updateConversationList();
-                }
-                currentConversationId = localStorage.getItem('currentConversationId');
-                $('#api-key').val(localStorage.getItem('apiKey') || '');
-                $('#model').val(localStorage.getItem('model') || '');
-                $('#system-prompt').val(localStorage.getItem('systemPrompt') || '');
-                $('#max-tokens').val(localStorage.getItem('maxTokens') || '4096');
-                $('#temperature').val(localStorage.getItem('temperature') || '0');
-
-                if (currentConversationId) {
-                    loadConversation(parseInt(currentConversationId));
-                }
-            } catch (error) {
-                console.error('Error loading from localStorage:', error);
-            }
-        }
-
-        function toggleSidebar() {
-            $('#sidebar').toggleClass('hidden');
-        }
-
-        function newConversation() {
-            currentState = 'new_conversation';
-            $('#user-input').val('');
-            updateInputPlaceholder();
-        }
-
-        function updateConversationList() {
-            $('#conversation-list').empty();
-            conversations.forEach(conv => {
-                $('#conversation-list').append(`
-                    <div class="conversation-item" data-id="${conv.id}" onclick="loadConversation(${conv.id})">
-                        <span class="conversation-name">${escapeHtml(conv.name)}</span>
-                        <div class="conversation-actions">
-                            <button onclick="renameConversation(${conv.id}); event.stopPropagation();">Rename</button>
-                            <button onclick="deleteConversation(${conv.id}); event.stopPropagation();">Delete</button>
-                        </div>
-                    </div>
-                `);
-            });
-        }
-
-        function renameConversation(id) {
-            const conversation = conversations.find(conv => conv.id === id);
-            if (conversation) {
-                const newName = prompt("Enter a new name for the conversation:", conversation.name);
-                if (newName) {
-                    conversation.name = newName;
-                    updateConversationList();
-                    saveToLocalStorage();
-                }
-            }
-        }
-
-        function deleteConversation(id) {
-            if (confirm("Are you sure you want to delete this conversation?")) {
-                conversations = conversations.filter(conv => conv.id !== id);
+    function loadFromLocalStorage() {
+        try {
+            const savedConversations = localStorage.getItem('conversations');
+            if (savedConversations) {
+                conversations = JSON.parse(savedConversations);
                 updateConversationList();
-                if (currentConversationId === id) {
-                    currentConversationId = null;
-                    clearChatContainer();
-                }
+            }
+            currentConversationId = localStorage.getItem('currentConversationId');
+            $('#api-key').val(localStorage.getItem('apiKey') || '');
+            $('#model').val(localStorage.getItem('model') || '');
+            $('#system-prompt').val(localStorage.getItem('systemPrompt') || '');
+            $('#max-tokens').val(localStorage.getItem('maxTokens') || '4096');
+            $('#temperature').val(localStorage.getItem('temperature') || '0');
+
+            if (currentConversationId) {
+                loadConversation(parseInt(currentConversationId));
+            }
+        } catch (error) {
+            console.error('Error loading from localStorage:', error);
+        }
+    }
+
+    function toggleSidebar() {
+        $('#sidebar').toggleClass('hidden');
+    }
+
+    function newConversation() {
+        currentState = 'new_conversation';
+        $('#user-input').val('');
+        updateInputPlaceholder();
+    }
+
+    function updateConversationList() {
+        $('#conversation-list').empty();
+        conversations.forEach(conv => {
+            $('#conversation-list').append(`
+                <div class="conversation-item" data-id="${conv.id}" onclick="loadConversation(${conv.id})">
+                    <span class="conversation-name">${escapeHtml(conv.name)}</span>
+                    <div class="conversation-actions">
+                        <button onclick="renameConversation(${conv.id}); event.stopPropagation();">Rename</button>
+                        <button onclick="deleteConversation(${conv.id}); event.stopPropagation();">Delete</button>
+                    </div>
+                </div>
+            `);
+        });
+    }
+
+    function renameConversation(id) {
+        const conversation = conversations.find(conv => conv.id === id);
+        if (conversation) {
+            const newName = prompt("Enter a new name for the conversation:", conversation.name);
+            if (newName) {
+                conversation.name = newName;
+                updateConversationList();
                 saveToLocalStorage();
             }
         }
+    }
 
-        function loadConversation(id) {
-            currentConversationId = id;
-            clearChatContainer();
-            const conversation = conversations.find(conv => conv.id === id);
-            if (conversation) {
-                conversation.messages.forEach(msg => {
-                    appendMessage(msg.role, msg.content);
-                });
+    function deleteConversation(id) {
+        if (confirm("Are you sure you want to delete this conversation?")) {
+            conversations = conversations.filter(conv => conv.id !== id);
+            updateConversationList();
+            if (currentConversationId === id) {
+                currentConversationId = null;
+                clearChatContainer();
             }
             saveToLocalStorage();
         }
+    }
 
-        function clearChatContainer() {
-            $('#chat-container').empty();
-        }
-
-        function appendMessage(role, content) {
-            const escapedContent = escapeHtml(content);
-            const displayRole = role.toLowerCase() === 'user' ? 'You' : $('#model').val().split('@')[0];
-            const messageHtml = `
-                <div class="message">
-                    <strong>${displayRole}:</strong>
-                    <pre>${escapedContent}</pre>
-                    ${role.toLowerCase() !== 'user' ? '<button class="copy-btn" onclick="copyToClipboard(this)">Copy</button>' : ''}
-                    ${role.toLowerCase() !== 'user' ? '<button class="regenerate-btn" onclick="regenerateResponse(this)">Regenerate</button>' : ''}
-                </div>
-            `;
-            $('#chat-container').append(messageHtml);
-            $('#chat-container').scrollTop($('#chat-container')[0].scrollHeight);
-        }
-
-        function copyToClipboard(button) {
-            const escapedContent = $(button).siblings('pre').text();
-            const content = unescapeHtml(escapedContent);
-            navigator.clipboard.writeText(content).then(() => {
-                alert('Copied to clipboard!');
+    function loadConversation(id) {
+        currentConversationId = id;
+        clearChatContainer();
+        const conversation = conversations.find(conv => conv.id === id);
+        if (conversation) {
+            conversation.messages.forEach(msg => {
+                appendMessage(msg.role, msg.content);
             });
         }
+        saveToLocalStorage();
+    }
 
-        function regenerateResponse(button) {
-            const escapedUserMessage = $(button).closest('.message').prev().find('pre').text();
-            const userMessage = unescapeHtml(escapedUserMessage);
-            $('#user-input').val(userMessage);
-            sendMessage(true);
+    function clearChatContainer() {
+        $('#chat-container').empty();
+    }
+
+    function appendMessage(role, content) {
+        const escapedContent = escapeHtml(content);
+        const displayRole = role.toLowerCase() === 'user' ? 'You' : $('#model').val().split('@')[0];
+        const messageHtml = `
+            <div class="message">
+                <strong>${displayRole}:</strong>
+                <pre>${escapedContent}</pre>
+                ${role.toLowerCase() !== 'user' ? '<button class="copy-btn" onclick="copyToClipboard(this)">Copy</button>' : ''}
+                ${role.toLowerCase() !== 'user' ? '<button class="regenerate-btn" onclick="regenerateResponse(this)">Regenerate</button>' : ''}
+            </div>
+        `;
+        $('#chat-container').append(messageHtml);
+        $('#chat-container').scrollTop($('#chat-container')[0].scrollHeight);
+    }
+
+    function copyToClipboard(button) {
+        const escapedContent = $(button).siblings('pre').text();
+        const content = unescapeHtml(escapedContent);
+        navigator.clipboard.writeText(content).then(() => {
+            alert('Copied to clipboard!');
+        });
+    }
+
+    function regenerateResponse(button) {
+        const escapedUserMessage = $(button).closest('.message').prev().find('pre').text();
+        const userMessage = unescapeHtml(escapedUserMessage);
+        $('#user-input').val(userMessage);
+        sendMessage(true);
+    }
+
+    function fetchCredits() {
+        var apiKey = $('#api-key').val();
+        if (!apiKey) {
+            updateInputPlaceholder();
+            return;
         }
 
-        function fetchCredits() {
-            var apiKey = $('#api-key').val();
-            if (!apiKey) {
-                $('#credits-display').text('');
-                return;
-            }
-
-            fetch('/.netlify/functions/chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    action: 'getCredits',
-                    api_key: apiKey
-                })
+        fetch('/.netlify/functions/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'getCredits',
+                api_key: apiKey
             })
+        })
             .then(response => response.json())
             .then(data => {
                 if (data.credits !== undefined) {
-                    const creditsText = `Account balance: $${data.credits.toFixed(2)}`;
-                    $('#credits-display').text(creditsText);
+                    updateInputPlaceholder(data.credits);
                 } else {
                     throw new Error('Failed to fetch credits');
                 }
             })
             .catch(error => {
                 console.error('Error fetching credits:', error);
-                $('#credits-display').text('Error fetching account balance');
+                updateInputPlaceholder();
             });
+    }
+
+    function updateInputPlaceholder(credits) {
+        if (credits !== undefined) {
+            $('#user-input').attr('placeholder', `Type your message here (Account balance: $${credits.toFixed(2)})`);
+        } else {
+            $('#user-input').attr('placeholder', 'Type your message here');
+        }
+    }
+
+    function updateCreditsAfterResponse() {
+        setTimeout(fetchCredits, 1000); // Delay to ensure the API has updated the balance
+    }
+
+    function sendMessage(isRegenerate = false) {
+        var apiKey = $('#api-key').val();
+        var model = $('#model').val();
+        var userMessage = $('#user-input').val();
+        var maxTokens = $('#max-tokens').val();
+        var temperature = $('#temperature').val();
+        var systemPrompt = $('#system-prompt').val();
+
+        if (!apiKey || !model || !userMessage) {
+            alert("Please enter API key, model, and message.");
+            return;
         }
 
-        function updateCreditsAfterResponse() {
-            setTimeout(fetchCredits, 1000); // Delay to ensure the API has updated the balance
+        if (!isRegenerate) {
+            appendMessage('user', userMessage);
+        }
+        $('#user-input').val('');
+
+        const conversation = conversations.find(conv => conv.id === currentConversationId);
+        if (!conversation) {
+            console.error('No active conversation');
+            return;
         }
 
-        function sendMessage(isRegenerate = false) {
-            var apiKey = $('#api-key').val();
-            var model = $('#model').val();
-            var userMessage = $('#user-input').val();
-            var maxTokens = $('#max-tokens').val();
-            var temperature = $('#temperature').val();
-            var systemPrompt = $('#system-prompt').val();
+        const messages = [
+            {"role": "system", "content": systemPrompt},
+            ...conversation.messages,
+            {"role": "user", "content": userMessage}
+        ];
 
-            if (!apiKey || !model || !userMessage) {
-                alert("Please enter API key, model, and message.");
-                return;
-            }
-
-            if (!isRegenerate) {
-                appendMessage('user', userMessage);
-            }
-            $('#user-input').val('');
-
-            const conversation = conversations.find(conv => conv.id === currentConversationId);
-            if (!conversation) {
-                console.error('No active conversation');
-                return;
-            }
-
-            const messages = [
-                {"role": "system", "content": systemPrompt},
-                ...conversation.messages,
-                {"role": "user", "content": userMessage}
-            ];
-
-            fetch('/.netlify/functions/chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    action: 'chat',
-                    api_key: apiKey,
-                    model: model,
-                    messages: messages,
-                    max_tokens: parseInt(maxTokens),
-                    temperature: parseFloat(temperature)
-                })
+        fetch('/.netlify/functions/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'chat',
+                api_key: apiKey,
+                model: model,
+                messages: messages,
+                max_tokens: parseInt(maxTokens),
+                temperature: parseFloat(temperature)
             })
+        })
             .then(response => {
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
@@ -435,119 +435,94 @@
                 console.error('Error:', error);
                 appendMessage('Error', `An error occurred while fetching the response: ${error.message}`);
             });
-        }
+    }
 
-        function showConfigPopup() {
-            $('#config-popup').show();
-        }
+    function showConfigPopup() {
+        $('#config-popup').show();
+    }
 
-        function closeConfigPopup() {
-            $('#config-popup').hide();
-        }
+    function closeConfigPopup() {
+        $('#config-popup').hide();
+    }
 
-        function saveConfig() {
-            saveToLocalStorage();
-            closeConfigPopup();
-        }
+    function saveConfig() {
+        saveToLocalStorage();
+        closeConfigPopup();
+    }
 
-        function deleteAllConversations() {
-            if (confirm("Are you sure you want to delete all conversations?")) {
-                conversations = [];
-                currentConversationId = null;
-                updateConversationList();
-                clearChatContainer();
-                saveToLocalStorage();
-            }
-        }
-
-        function handleUserAction() {
-            const inputValue = $('#user-input').val().trim();
-            switch (currentState) {
-                case 'new_conversation':
-                    if (inputValue) {
-                        handleNewConversation(inputValue);
-                    } else {
-                        alert("Please enter a name for the conversation.");
-                    }
-                    break;
-                case 'api_key':
-                    if (inputValue) {
-                        handleApiKey(inputValue);
-                    } else {
-                        alert("Please enter your API key.");
-                    }
-                    break;
-                case 'chat':
-                    sendMessage();
-                    break;
-            }
-        }
-
-        function handleNewConversation(name) {
-            currentConversationId = Date.now();
-            conversations.push({id: currentConversationId, name: name, messages: []});
+    function deleteAllConversations() {
+        if (confirm("Are you sure you want to delete all conversations?")) {
+            conversations = [];
+            currentConversationId = null;
             updateConversationList();
             clearChatContainer();
             saveToLocalStorage();
-            currentState = 'api_key';
-            updateInputPlaceholder();
         }
+    }
 
-        function handleApiKey(apiKey) {
-            $('#api-key').val(apiKey);
-            saveToLocalStorage();
-            fetchCredits();
-            currentState = 'chat';
-            updateInputPlaceholder();
-        }
-
-        function updateInputPlaceholder() {
-            switch (currentState) {
-                case 'new_conversation':
-                    $('#user-input').attr('placeholder', 'Please set a name for this conversation');
-                    $('#send-button').text('Next');
-                    break;
-                case 'api_key':
-                    $('#user-input').attr('placeholder', 'Please insert the API key');
-                    $('#send-button').text('Set API Key');
-                    break;
-                case 'chat':
-                    $('#user-input').attr('placeholder', 'Type your message');
-                    $('#send-button').text('Send');
-                    break;
-            }
-        }
-
-        function initializeApp() {
-            loadFromLocalStorage();
-            updateConversationList();
-
-            if (conversations.length > 0 && currentConversationId) {
-                loadConversation(parseInt(currentConversationId));
-                if ($('#api-key').val()) {
-                    currentState = 'chat';
+    function handleUserAction() {
+        const inputValue = $('#user-input').val().trim();
+        switch (currentState) {
+            case 'new_conversation':
+                if (inputValue) {
+                    handleNewConversation(inputValue);
                 } else {
-                    currentState = 'api_key';
+                    alert("Please enter a name for the conversation.");
                 }
-            } else if (conversations.length > 0) {
-                loadConversation(conversations[0].id);
-                if ($('#api-key').val()) {
-                    currentState = 'chat';
+                break;
+            case 'api_key':
+                if (inputValue) {
+                    handleApiKey(inputValue);
                 } else {
-                    currentState = 'api_key';
+                    alert("Please enter your API key.");
                 }
-            } else {
-                currentState = 'new_conversation';
-            }
+                break;
+            case 'chat':
+                sendMessage();
+                break;
+        }
+    }
 
-            updateInputPlaceholder();
+    function handleNewConversation(name) {
+        currentConversationId = Date.now();
+        conversations.push({id: currentConversationId, name: name, messages: []});
+        updateConversationList();
+        clearChatContainer();
+        saveToLocalStorage();
+        currentState = 'api_key';
+        updateInputPlaceholder();
+    }
 
-            $('#api-key, #model, #system-prompt, #max-tokens, #temperature').on('input', saveToLocalStorage);
-            $('#api-key').on('input', fetchCredits);
-            fetchCredits();
+    function handleApiKey(apiKey) {
+        $('#api-key').val(apiKey);
+        saveToLocalStorage();
+        fetchCredits();
+        currentState = 'chat';
+        updateInputPlaceholder();
+    }
+
+    function initializeApp() {
+        loadFromLocalStorage();
+        updateConversationList();
+        if (conversations.length > 0 && currentConversationId) {
+            loadConversation(parseInt(currentConversationId));
+        } else if (conversations.length > 0) {
+            loadConversation(conversations[0].id);
+        } else {
+            newConversation();
         }
 
-        $(document).ready(initializeApp);
-    </script>
+        // Save configuration when inputs change
+        $('#api-key, #model, #system-prompt, #max-tokens, #temperature').on('input', saveToLocalStorage);
+
+        // Fetch credits when API key changes
+        $('#api-key').on('input', fetchCredits);
+
+        // Initial fetch of credits
+        fetchCredits();
+    }
+
+    $(document).ready(initializeApp);
+</script>
 </body>
 </html>
