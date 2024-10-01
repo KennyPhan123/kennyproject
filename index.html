@@ -90,6 +90,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            position: relative;
         }
         .conversation-item:hover {
             background-color: #d0d0d0;
@@ -113,11 +114,29 @@
         }
         .conversation-actions {
             display: none;
+            position: absolute;
+            right: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: #f0f0f0;
+            border-radius: 3px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
-        .conversation-item:hover .conversation-actions,
-        .conversation-item:active .conversation-actions,
-        .conversation-item.active .conversation-actions {
+        .conversation-actions button {
             display: block;
+            width: 100%;
+            padding: 5px 10px;
+            border: none;
+            background: none;
+            text-align: left;
+            cursor: pointer;
+        }
+        .conversation-actions button:hover {
+            background-color: #e0e0e0;
+        }
+        .conversation-item.active {
+            background-color: #d0d0d0;
+            font-weight: bold;
         }
         #toggle-buttons {
             position: fixed;
@@ -164,10 +183,6 @@
         .blur-background {
             filter: blur(5px);
             transition: filter 0.3s ease;
-        }
-        .conversation-item.active {
-            background-color: #d0d0d0;
-            font-weight: bold;
         }
         #overlay {
             display: none;
@@ -226,9 +241,15 @@
         }
 
         @media (max-width: 768px) {
+            .conversation-actions {
+                right: 0;
+                top: 100%;
+                transform: none;
+                width: 100%;
+            }
+
             .conversation-actions button {
                 padding: 10px;
-                margin: 5px;
             }
         }
     </style>
@@ -767,64 +788,44 @@
         }
     }
 
-    function initializeApp() {
-        loadFromLocalStorage();
-        if (conversations.length === 0) {
-            newConversation();
-        } else if (currentConversationId) {
-            loadConversation(parseInt(currentConversationId));
+    function toggleConversationActions(item) {
+        const actions = item.find('.conversation-actions');
+        if (actions.is(':visible')) {
+            actions.hide();
+            item.removeClass('active');
+            activeConversationItem = null;
         } else {
-            loadConversation(conversations[0].id);
+            $('.conversation-actions').hide();
+            $('.conversation-item').removeClass('active');
+            actions.show();
+            item.addClass('active');
+            activeConversationItem = item;
         }
-        updateConversationList();
-
-        $('#api-key, #model, #system-prompt, #max-tokens, #temperature').on('input', saveToLocalStorage);
-        $('#api-key').on('input', fetchCredits);
-        fetchCredits();
-
-        $('#user-input').on('keydown', function (e) {
-            if ((e.ctrlKey || e.shiftKey) && e.keyCode === 13) {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
-
-        $('#send-button').on('click', function(e) {
-            e.preventDefault();
-            sendMessage();
-        });
-
-        $('#conversation-list').on('click', '.conversation-item', function() {
-            loadConversation(parseInt($(this).data('id')));
-        });
-        $('#conversation-list').on('click', '.rename-btn', function(e) {
-            e.stopPropagation();
-            renameConversation(parseInt($(this).closest('.conversation-item').data('id')));
-        });
-        $('#conversation-list').on('click', '.delete-btn', function(e) {
-            e.stopPropagation();
-            deleteConversation(parseInt($(this).closest('.conversation-item').data('id')));
-        });
-        $('#chat-container').on('click', '.copy-btn', function() {
-            copyToClipboard(this);
-        });
-        $('#chat-container').on('click', '.regenerate-btn', function() {
-            regenerateResponse(this);
-        });
-
-        // Add touch event listeners for mobile devices
-        $('#conversation-list').on('touchstart', '.conversation-item', function() {
-            $(this).addClass('active');
-        });
-
-        $('#conversation-list').on('touchend', '.conversation-item', function() {
-            $(this).removeClass('active');
-        });
     }
 
     $(document).ready(function() {
         initializeApp();
         initializeModelSelection();
+
+        $('#conversation-list').on('click', '.conversation-item', function(e) {
+            const $this = $(this);
+            const id = parseInt($this.data('id'));
+
+            if ($(e.target).closest('.conversation-actions').length === 0) {
+                toggleConversationActions($this);
+                e.stopPropagation();
+            }
+
+            if (!$this.hasClass('active')) {
+                loadConversation(id);
+            }
+        });
+
+        $(document).on('click touchstart', function(e) {
+            if (activeConversationItem && !$(e.target).closest('.conversation-item').length) {
+                toggleConversationActions(activeConversationItem);
+            }
+        });
     });
 </script>
 </body>
