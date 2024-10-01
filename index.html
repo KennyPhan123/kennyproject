@@ -114,7 +114,9 @@
         .conversation-actions {
             display: none;
         }
-        .conversation-item:hover .conversation-actions {
+        .conversation-item:hover .conversation-actions,
+        .conversation-item:active .conversation-actions,
+        .conversation-item.active .conversation-actions {
             display: block;
         }
         #toggle-buttons {
@@ -221,6 +223,13 @@
         .model-option.selected {
             background-color: #e0e0e0;
             font-weight: bold;
+        }
+
+        @media (max-width: 768px) {
+            .conversation-actions button {
+                padding: 10px;
+                margin: 5px;
+            }
         }
     </style>
 </head>
@@ -801,6 +810,15 @@
         });
         $('#chat-container').on('click', '.regenerate-btn', function() {
             regenerateResponse(this);
+        });
+
+        // Add touch event listeners for mobile devices
+        $('#conversation-list').on('touchstart', '.conversation-item', function() {
+            $(this).addClass('active');
+        });
+
+        $('#conversation-list').on('touchend', '.conversation-item', function() {
+            $(this).removeClass('active');
         });
     }
 
