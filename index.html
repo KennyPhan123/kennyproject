@@ -114,7 +114,7 @@
         .conversation-actions {
             display: none;
         }
-        /* Changes: Display actions on hover and for mobile (using show-actions class) */
+        /* CHANGES: Display actions on hover and for mobile (using show-actions class) */
         .conversation-item:hover .conversation-actions,
         .conversation-item.show-actions .conversation-actions {
             display: block;
@@ -143,13 +143,21 @@
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             text-align: center;
         }
-        #config-popup input {
+        #config-popup input,
+        #config-popup .model-container {
             display: block;
             width: 100%;
             max-width: 300px;
             margin: 0 auto 15px;
             padding: 10px;
             font-size: 16px;
+            box-sizing: border-box;
+        }
+        #model {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            box-sizing: border-box;
         }
         #config-popup .button-container {
             display: flex;
@@ -186,7 +194,7 @@
             box-sizing: border-box;
         }
 
-        /* Changes: Adjusted model dropdown alignment */
+        /* CHANGES: Adjusted model dropdown alignment */
         #model-dropdown {
             position: absolute;
             top: 100%;
@@ -251,7 +259,7 @@
 <div id="overlay"></div>
 <div id="config-popup">
     <input type="password" id="api-key" placeholder="Enter your API key">
-    <div style="position: relative;">
+    <div class="model-container">
         <input type="text" id="model" placeholder="Select a model" readonly>
         <div id="model-dropdown" style="display: none;">
             <input type="text" id="model-search" placeholder="Search models...">
@@ -559,7 +567,7 @@
         });
     }
 
-    // Changes: Modified regenerateResponse to forget last assistant message
+    // CHANGES: Modified regenerateResponse to forget last assistant message
     function regenerateResponse(button) {
         const escapedUserMessage = $(button).closest('.message').prev().find('pre').text();
         const userMessage = unescapeHtml(escapedUserMessage);
@@ -770,11 +778,23 @@
         }
     }
 
-    // Changes: Added touch event handling for mobile to toggle conversation actions
-    $('#conversation-list').on('touchstart', '.conversation-item', function(e) {
+    // CHANGES: Added touch event handling for mobile to toggle conversation actions
+    $('#conversation-list').on('click touchstart', '.conversation-item', function(e) {
         e.preventDefault();
         $(this).toggleClass('show-actions');
         $('.conversation-item').not(this).removeClass('show-actions');
+    });
+
+    $('#conversation-list').on('click touchstart', '.rename-btn', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        renameConversation(parseInt($(this).closest('.conversation-item').data('id')));
+    });
+
+    $('#conversation-list').on('click touchstart', '.delete-btn', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        deleteConversation(parseInt($(this).closest('.conversation-item').data('id')));
     });
 
     $(document).on('touchstart', function(e) {
@@ -809,7 +829,7 @@
             e.preventDefault();
             sendMessage();
         });
-        
+
         $('#conversation-list').on('click', '.conversation-item', function() {
             loadConversation(parseInt($(this).data('id')));
         });
