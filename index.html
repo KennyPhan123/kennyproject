@@ -240,6 +240,8 @@
             font-weight: bold;
         }
 
+        /* Remove this part if it's causing problems */
+        /*
         @media (max-width: 768px) {
             .conversation-actions {
                 right: 0;
@@ -252,6 +254,7 @@
                 padding: 10px;
             }
         }
+        */
     </style>
 </head>
 <body>
@@ -788,44 +791,9 @@
         }
     }
 
-    function toggleConversationActions(item) {
-        const actions = item.find('.conversation-actions');
-        if (actions.is(':visible')) {
-            actions.hide();
-            item.removeClass('active');
-            activeConversationItem = null;
-        } else {
-            $('.conversation-actions').hide();
-            $('.conversation-item').removeClass('active');
-            actions.show();
-            item.addClass('active');
-            activeConversationItem = item;
-        }
-    }
-
     $(document).ready(function() {
         initializeApp();
         initializeModelSelection();
-
-        $('#conversation-list').on('click', '.conversation-item', function(e) {
-            const $this = $(this);
-            const id = parseInt($this.data('id'));
-
-            if ($(e.target).closest('.conversation-actions').length === 0) {
-                toggleConversationActions($this);
-                e.stopPropagation();
-            }
-
-            if (!$this.hasClass('active')) {
-                loadConversation(id);
-            }
-        });
-
-        $(document).on('click touchstart', function(e) {
-            if (activeConversationItem && !$(e.target).closest('.conversation-item').length) {
-                toggleConversationActions(activeConversationItem);
-            }
-        });
     });
 </script>
 </body>
