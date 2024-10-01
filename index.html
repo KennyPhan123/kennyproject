@@ -114,7 +114,9 @@
         .conversation-actions {
             display: none;
         }
-        .conversation-item:hover .conversation-actions {
+        /* Changes: Display actions on hover and for mobile (using show-actions class) */
+        .conversation-item:hover .conversation-actions,
+        .conversation-item.show-actions .conversation-actions {
             display: block;
         }
         #toggle-buttons {
@@ -181,8 +183,11 @@
         /* Updated CSS for model selection dropdown */
         #model {
             position: relative;
+            width: 100%;
+            box-sizing: border-box;
         }
 
+        /* Changes: Adjusted model dropdown alignment */
         #model-dropdown {
             position: absolute;
             top: 100%;
@@ -555,10 +560,18 @@
         });
     }
 
+    // Changes: Modified regenerateResponse to forget last assistant message
     function regenerateResponse(button) {
         const escapedUserMessage = $(button).closest('.message').prev().find('pre').text();
         const userMessage = unescapeHtml(escapedUserMessage);
         $('#user-input').val(userMessage);
+
+        // Remove the last assistant message from the conversation
+        const conversation = conversations.find(conv => conv.id === currentConversationId);
+        if (conversation && conversation.messages.length > 0) {
+            conversation.messages.pop(); // Remove the last assistant message
+        }
+
         sendMessage(true);
     }
 
@@ -757,6 +770,18 @@
             modelInput.val(models[0]);
         }
     }
+
+    // Changes: Added touch event handling for mobile
+    $('#conversation-list').on('touchstart', '.conversation-item', function(e) {
+        e.preventDefault();
+        $(this).addClass('show-actions');
+    });
+
+    $(document).on('touchstart', function(e) {
+        if (!$(e.target).closest('.conversation-item').length) {
+            $('.conversation-item').removeClass('show-actions');
+        }
+    });
 
     function initializeApp() {
         loadFromLocalStorage();
