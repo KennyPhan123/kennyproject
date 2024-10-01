@@ -90,7 +90,6 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            position: relative;
         }
         .conversation-item:hover {
             background-color: #d0d0d0;
@@ -114,12 +113,8 @@
         }
         .conversation-actions {
             display: none;
-            position: absolute;
-            right: 5px;
-            top: 50%;
-            transform: translateY(-50%);
         }
-        .conversation-item.show-actions .conversation-actions {
+        .conversation-item:hover .conversation-actions {
             display: block;
         }
         #toggle-buttons {
@@ -790,41 +785,17 @@
             sendMessage();
         });
 
-        $('#conversation-list').on('touchstart', '.conversation-item', function(e) {
-            touchStartTime = new Date().getTime();
-            const $this = $(this);
-            touchTimer = setTimeout(function() {
-                $this.toggleClass('show-actions');
-            }, 500); // Long press duration (500ms)
+        $('#conversation-list').on('click', '.conversation-item', function() {
+            loadConversation(parseInt($(this).data('id')));
         });
-
-        $('#conversation-list').on('touchend', '.conversation-item', function(e) {
-            const touchEndTime = new Date().getTime();
-            const touchDuration = touchEndTime - touchStartTime;
-
-            clearTimeout(touchTimer);
-
-            if (touchDuration < 500) { // Short tap
-                loadConversation(parseInt($(this).data('id')));
-            }
-        });
-
         $('#conversation-list').on('click', '.rename-btn', function(e) {
             e.stopPropagation();
             renameConversation(parseInt($(this).closest('.conversation-item').data('id')));
         });
-
         $('#conversation-list').on('click', '.delete-btn', function(e) {
             e.stopPropagation();
             deleteConversation(parseInt($(this).closest('.conversation-item').data('id')));
         });
-
-        $(document).on('touchstart', function(e) {
-            if (!$(e.target).closest('.conversation-item').length) {
-                $('.conversation-item').removeClass('show-actions');
-            }
-        });
-
         $('#chat-container').on('click', '.copy-btn', function() {
             copyToClipboard(this);
         });
