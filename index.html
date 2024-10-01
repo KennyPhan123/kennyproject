@@ -90,7 +90,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            position: relative; /* Added for absolute positioning of actions */
+            position: relative;
         }
         .conversation-item:hover {
             background-color: #d0d0d0;
@@ -411,20 +411,20 @@
 
     function escapeHtml(unsafe) {
         return unsafe
-            .replace(/&/g, "&")
-            .replace(/</g, "<")
-            .replace(/>/g, ">")
-            .replace(/"/g, """)
-            .replace(/'/g, "'");
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
     }
 
     function unescapeHtml(safe) {
         return safe
-            .replace(/&/g, "&")
-            .replace(/</g, "<")
-            .replace(/>/g, ">")
-            .replace(/"/g, "\"")
-            .replace(/'/g, "'");
+            .replace(/&amp;/g, "&")
+            .replace(/&lt;/g, "<")
+            .replace(/&gt;/g, ">")
+            .replace(/&quot;/g, "\"")
+            .replace(/&#039;/g, "'");
     }
 
     function saveToLocalStorage() {
@@ -763,15 +763,6 @@
         }
     }
 
-    let touchStartTime;
-    let touchTimer;
-
-    $(document).ready(function() {
-        initializeApp();
-        initializeModelSelection();
-    });
-
-
     function initializeApp() {
         loadFromLocalStorage();
         if (conversations.length === 0) {
@@ -841,6 +832,11 @@
             regenerateResponse(this);
         });
     }
+
+    $(document).ready(function() {
+        initializeApp();
+        initializeModelSelection();
+    });
 </script>
 </body>
 </html>
