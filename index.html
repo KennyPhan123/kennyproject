@@ -182,7 +182,6 @@
 
         /* Updated CSS for model selection dropdown */
         #model {
-            position: relative;
             width: 100%;
             box-sizing: border-box;
         }
@@ -771,10 +770,11 @@
         }
     }
 
-    // Changes: Added touch event handling for mobile
+    // Changes: Added touch event handling for mobile to toggle conversation actions
     $('#conversation-list').on('touchstart', '.conversation-item', function(e) {
         e.preventDefault();
-        $(this).addClass('show-actions');
+        $(this).toggleClass('show-actions');
+        $('.conversation-item').not(this).removeClass('show-actions');
     });
 
     $(document).on('touchstart', function(e) {
