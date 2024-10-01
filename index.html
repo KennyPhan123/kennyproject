@@ -114,9 +114,7 @@
         .conversation-actions {
             display: none;
         }
-        /* CHANGES: Display actions on hover and for mobile (using show-actions class) */
-        .conversation-item:hover .conversation-actions,
-        .conversation-item.show-actions .conversation-actions {
+        .conversation-item:hover .conversation-actions {
             display: block;
         }
         #toggle-buttons {
@@ -143,21 +141,13 @@
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             text-align: center;
         }
-        #config-popup input,
-        #config-popup .model-container {
+        #config-popup input {
             display: block;
             width: 100%;
             max-width: 300px;
             margin: 0 auto 15px;
             padding: 10px;
             font-size: 16px;
-            box-sizing: border-box;
-        }
-        #model {
-            width: 100%;
-            padding: 10px;
-            font-size: 16px;
-            box-sizing: border-box;
         }
         #config-popup .button-container {
             display: flex;
@@ -190,11 +180,9 @@
 
         /* Updated CSS for model selection dropdown */
         #model {
-            width: 100%;
-            box-sizing: border-box;
+            position: relative;
         }
 
-        /* CHANGES: Adjusted model dropdown alignment */
         #model-dropdown {
             position: absolute;
             top: 100%;
@@ -259,7 +247,7 @@
 <div id="overlay"></div>
 <div id="config-popup">
     <input type="password" id="api-key" placeholder="Enter your API key">
-    <div class="model-container">
+    <div style="position: relative;">
         <input type="text" id="model" placeholder="Select a model" readonly>
         <div id="model-dropdown" style="display: none;">
             <input type="text" id="model-search" placeholder="Search models...">
@@ -341,6 +329,7 @@
         "llama-3.1-405b-chat@octoai",
         "llama-3.1-405b-chat@replicate",
         "llama-3.1-405b-chat@together-ai",
+        "llama-3.1-405b-chat@vertex-ai",
         "llama-3.1-70b-chat@aws-bedrock",
         "llama-3.1-70b-chat@azure-ai",
         "llama-3.1-70b-chat@deepinfra",
@@ -566,18 +555,10 @@
         });
     }
 
-    // CHANGES: Modified regenerateResponse to forget last assistant message
     function regenerateResponse(button) {
         const escapedUserMessage = $(button).closest('.message').prev().find('pre').text();
         const userMessage = unescapeHtml(escapedUserMessage);
         $('#user-input').val(userMessage);
-
-        // Remove the last assistant message from the conversation
-        const conversation = conversations.find(conv => conv.id === currentConversationId);
-        if (conversation && conversation.messages.length > 0) {
-            conversation.messages.pop(); // Remove the last assistant message
-        }
-
         sendMessage(true);
     }
 
@@ -776,31 +757,6 @@
             modelInput.val(models[0]);
         }
     }
-
-    // CHANGES: Added touch event handling for mobile to toggle conversation actions
-    $('#conversation-list').on('click touchstart', '.conversation-item', function(e) {
-        e.preventDefault();
-        $(this).toggleClass('show-actions');
-        $('.conversation-item').not(this).removeClass('show-actions');
-    });
-
-    $('#conversation-list').on('click touchstart', '.rename-btn', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        renameConversation(parseInt($(this).closest('.conversation-item').data('id')));
-    });
-
-    $('#conversation-list').on('click touchstart', '.delete-btn', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        deleteConversation(parseInt($(this).closest('.conversation-item').data('id')));
-    });
-
-    $(document).on('touchstart', function(e) {
-        if (!$(e.target).closest('.conversation-item').length) {
-            $('.conversation-item').removeClass('show-actions');
-        }
-    });
 
     function initializeApp() {
         loadFromLocalStorage();
