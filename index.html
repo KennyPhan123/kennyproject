@@ -90,7 +90,6 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            position: relative;
         }
         .conversation-item:hover {
             background-color: #d0d0d0;
@@ -114,29 +113,9 @@
         }
         .conversation-actions {
             display: none;
-            position: absolute;
-            right: 5px;
-            top: 100%;
-            background-color: #f0f0f0;
-            border-radius: 3px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            z-index: 10;
         }
-        .conversation-actions button {
+        .conversation-item:hover .conversation-actions {
             display: block;
-            width: 100%;
-            padding: 8px 12px;
-            border: none;
-            background: none;
-            text-align: left;
-            cursor: pointer;
-        }
-        .conversation-actions button:hover {
-            background-color: #e0e0e0;
-        }
-        .conversation-item.active {
-            background-color: #d0d0d0;
-            font-weight: bold;
         }
         #toggle-buttons {
             position: fixed;
@@ -183,6 +162,10 @@
         .blur-background {
             filter: blur(5px);
             transition: filter 0.3s ease;
+        }
+        .conversation-item.active {
+            background-color: #d0d0d0;
+            font-weight: bold;
         }
         #overlay {
             display: none;
@@ -238,13 +221,6 @@
         .model-option.selected {
             background-color: #e0e0e0;
             font-weight: bold;
-        }
-
-        @media (max-width: 768px) {
-            .conversation-actions {
-                width: 100%;
-                right: 0;
-            }
         }
     </style>
 </head>
@@ -780,6 +756,52 @@
         } else {
             modelInput.val(models[0]);
         }
+    }
+
+    function initializeApp() {
+        loadFromLocalStorage();
+        if (conversations.length === 0) {
+            newConversation();
+        } else if (currentConversationId) {
+            loadConversation(parseInt(currentConversationId));
+        } else {
+            loadConversation(conversations[0].id);
+        }
+        updateConversationList();
+
+        $('#api-key, #model, #system-prompt, #max-tokens, #temperature').on('input', saveToLocalStorage);
+        $('#api-key').on('input', fetchCredits);
+        fetchCredits();
+
+        $('#user-input').on('keydown', function (e) {
+            if ((e.ctrlKey || e.shiftKey) && e.keyCode === 13) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        $('#send-button').on('click', function(e) {
+            e.preventDefault();
+            sendMessage();
+        });
+
+        $('#conversation-list').on('click', '.conversation-item', function() {
+            loadConversation(parseInt($(this).data('id')));
+        });
+        $('#conversation-list').on('click', '.rename-btn', function(e) {
+            e.stopPropagation();
+            renameConversation(parseInt($(this).closest('.conversation-item').data('id')));
+        });
+        $('#conversation-list').on('click', '.delete-btn', function(e) {
+            e.stopPropagation();
+            deleteConversation(parseInt($(this).closest('.conversation-item').data('id')));
+        });
+        $('#chat-container').on('click', '.copy-btn', function() {
+            copyToClipboard(this);
+        });
+        $('#chat-container').on('click', '.regenerate-btn', function() {
+            regenerateResponse(this);
+        });
     }
 
     $(document).ready(function() {
