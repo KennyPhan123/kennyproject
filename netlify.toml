@@ -1,10 +1,2 @@
 [build]
   functions = "netlify/functions"
-
-[functions]
-  external_node_modules = ["axios"]
-  included_files = ["netlify/functions/**"]
-  node_bundler = "esbuild"
-
-[functions.chat]
-  timeout = 1200
