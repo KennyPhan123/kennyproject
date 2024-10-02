@@ -808,6 +808,7 @@
                 if ($(this).hasClass('show-actions')) {
                     $(this).removeClass('show-actions');
                 } else {
+                    // Remove show-actions from all other conversations
                     $('.conversation-item').removeClass('show-actions');
                     $(this).addClass('show-actions');
                 }
