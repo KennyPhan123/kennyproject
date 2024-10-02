@@ -535,6 +535,12 @@
         }
         updateConversationList();
         saveToLocalStorage();
+
+        // Hide actions for all conversations and show for the selected one on mobile
+        if (isMobileDevice()) {
+            $('.conversation-item').removeClass('show-actions');
+            $(`.conversation-item[data-id="${id}"]`).addClass('show-actions');
+        }
     }
 
     function clearChatContainer() {
@@ -800,32 +806,28 @@
         });
 
         // Handle conversation item click for mobile and desktop
-        $('#conversation-list').on('click', '.conversation-item', function() {
+        $('#conversation-list').on('click', '.conversation-item', function(e) {
             const conversationId = parseInt($(this).data('id'));
+            const $this = $(this);
 
             if (isMobileDevice()) {
-                // Toggle the show-actions class for mobile
-                if ($(this).hasClass('show-actions')) {
-                    $(this).removeClass('show-actions');
+                if ($this.hasClass('show-actions')) {
+                    // If already showing actions, load the conversation
+                    loadConversation(conversationId);
                 } else {
-                    // Remove show-actions from all other conversation items
+                    // If not showing actions, show them and hide for others
                     $('.conversation-item').removeClass('show-actions');
-                    $(this).addClass('show-actions');
+                    $this.addClass('show-actions');
                 }
+            } else {
+                // For desktop, always load the conversation
+                loadConversation(conversationId);
             }
-
-            // Always load the conversation regardless of mobile or desktop
-            loadConversation(conversationId);
         });
 
-        $('#conversation-list').on('click', '.rename-btn', function(e) {
+        // Prevent action buttons from triggering conversation load
+        $('#conversation-list').on('click', '.rename-btn, .delete-btn', function(e) {
             e.stopPropagation();
-            renameConversation(parseInt($(this).closest('.conversation-item').data('id')));
-        });
-
-        $('#conversation-list').on('click', '.delete-btn', function(e) {
-            e.stopPropagation();
-            deleteConversation(parseInt($(this).closest('.conversation-item').data('id')));
         });
 
         $('#chat-container').on('click', '.copy-btn', function() {
