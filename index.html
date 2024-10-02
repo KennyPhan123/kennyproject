@@ -114,17 +114,8 @@
         .conversation-actions {
             display: none;
         }
-        /* Hover effect for desktop */
-        @media (min-width: 768px) {
-            .conversation-item:hover .conversation-actions {
-                display: block;
-            }
-        }
-        /* Tap-to-toggle effect for mobile */
-        @media (max-width: 767px) {
-            .conversation-item.show-actions .conversation-actions {
-                display: block;
-            }
+        .conversation-item:hover .conversation-actions {
+            display: block;
         }
         #toggle-buttons {
             position: fixed;
@@ -415,20 +406,20 @@
 
     function escapeHtml(unsafe) {
         return unsafe
-            .replace(/&amp;/g, "&amp;amp;")
-            .replace(/</g, "&amp;lt;")
-            .replace(/>/g, "&amp;gt;")
-            .replace(/"/g, "&amp;quot;")
-            .replace(/'/g, "&#x27;");
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
     }
 
     function unescapeHtml(safe) {
         return safe
-            .replace(/&amp;amp;/g, "&")
-            .replace(/&amp;lt;/g, "<")
-            .replace(/&amp;gt;/g, ">")
-            .replace(/&amp;quot;/g, "\"")
-            .replace(/&#x27;/g, "'");
+            .replace(/&amp;/g, "&")
+            .replace(/&lt;/g, "<")
+            .replace(/&gt;/g, ">")
+            .replace(/&quot;/g, "\"")
+            .replace(/&#039;/g, "'");
     }
 
     function saveToLocalStorage() {
@@ -535,12 +526,6 @@
         }
         updateConversationList();
         saveToLocalStorage();
-
-        // Hide actions for all conversations and show for the selected one on mobile
-        if (isMobileDevice()) {
-            $('.conversation-item').removeClass('show-actions');
-            $(`.conversation-item[data-id="${id}"]`).addClass('show-actions');
-        }
     }
 
     function clearChatContainer() {
@@ -773,11 +758,6 @@
         }
     }
 
-    // Detect if the user is on a mobile device
-    function isMobileDevice() {
-        return /Mobi|Android/i.test(navigator.userAgent);
-    }
-
     function initializeApp() {
         loadFromLocalStorage();
         if (conversations.length === 0) {
@@ -805,35 +785,20 @@
             sendMessage();
         });
 
-        // Handle conversation item click for mobile and desktop
-        $('#conversation-list').on('click', '.conversation-item', function(e) {
-            const conversationId = parseInt($(this).data('id'));
-            const $this = $(this);
-
-            if (isMobileDevice()) {
-                if ($this.hasClass('show-actions')) {
-                    // If already showing actions, load the conversation
-                    loadConversation(conversationId);
-                } else {
-                    // If not showing actions, show them and hide for others
-                    $('.conversation-item').removeClass('show-actions');
-                    $this.addClass('show-actions');
-                }
-            } else {
-                // For desktop, always load the conversation
-                loadConversation(conversationId);
-            }
+        $('#conversation-list').on('click', '.conversation-item', function() {
+            loadConversation(parseInt($(this).data('id')));
         });
-
-        // Prevent action buttons from triggering conversation load
-        $('#conversation-list').on('click', '.rename-btn, .delete-btn', function(e) {
+        $('#conversation-list').on('click', '.rename-btn', function(e) {
             e.stopPropagation();
+            renameConversation(parseInt($(this).closest('.conversation-item').data('id')));
         });
-
+        $('#conversation-list').on('click', '.delete-btn', function(e) {
+            e.stopPropagation();
+            deleteConversation(parseInt($(this).closest('.conversation-item').data('id')));
+        });
         $('#chat-container').on('click', '.copy-btn', function() {
             copyToClipboard(this);
         });
-
         $('#chat-container').on('click', '.regenerate-btn', function() {
             regenerateResponse(this);
         });
@@ -842,31 +807,6 @@
     $(document).ready(function() {
         initializeApp();
         initializeModelSelection();
-
-        // Attach click handlers for rename and delete buttons
-        $('#conversation-list').on('click', '.rename-btn', function(e) {
-            e.stopPropagation();
-            const conversationId = parseInt($(this).closest('.conversation-item').data('id'));
-            renameConversation(conversationId);
-        });
-
-        $('#conversation-list').on('click', '.delete-btn', function(e) {
-            e.stopPropagation();
-            const conversationId = parseInt($(this).closest('.conversation-item').data('id'));
-            deleteConversation(conversationId);
-        });
-
-        // Update click handler for conversation items
-        $('#conversation-list').on('click', '.conversation-item', function(e) {
-            const conversationId = parseInt($(this).data('id'));
-            loadConversation(conversationId);
-        });
-
-        // Handle actions button click (if using Option 2)
-        $('#conversation-list').on('click', '.actions-btn', function(e) {
-            e.stopPropagation();
-            $(this).siblings('.conversation-actions').toggle();
-        });
     });
 </script>
 </body>
