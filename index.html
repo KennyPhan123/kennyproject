@@ -842,6 +842,31 @@
     $(document).ready(function() {
         initializeApp();
         initializeModelSelection();
+
+        // Attach click handlers for rename and delete buttons
+        $('#conversation-list').on('click', '.rename-btn', function(e) {
+            e.stopPropagation();
+            const conversationId = parseInt($(this).closest('.conversation-item').data('id'));
+            renameConversation(conversationId);
+        });
+
+        $('#conversation-list').on('click', '.delete-btn', function(e) {
+            e.stopPropagation();
+            const conversationId = parseInt($(this).closest('.conversation-item').data('id'));
+            deleteConversation(conversationId);
+        });
+
+        // Update click handler for conversation items
+        $('#conversation-list').on('click', '.conversation-item', function(e) {
+            const conversationId = parseInt($(this).data('id'));
+            loadConversation(conversationId);
+        });
+
+        // Handle actions button click (if using Option 2)
+        $('#conversation-list').on('click', '.actions-btn', function(e) {
+            e.stopPropagation();
+            $(this).siblings('.conversation-actions').toggle();
+        });
     });
 </script>
 </body>
