@@ -114,8 +114,17 @@
         .conversation-actions {
             display: none;
         }
-        .conversation-item.show-actions .conversation-actions {
-            display: block;
+        /* Hover effect for desktop */
+        @media (min-width: 768px) {
+            .conversation-item:hover .conversation-actions {
+                display: block;
+            }
+        }
+        /* Tap-to-toggle effect for mobile */
+        @media (max-width: 767px) {
+            .conversation-item.show-actions .conversation-actions {
+                display: block;
+            }
         }
         #toggle-buttons {
             position: fixed;
