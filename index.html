@@ -416,10 +416,10 @@
     function escapeHtml(unsafe) {
         return unsafe
             .replace(/&amp;/g, "&amp;amp;")
-            .replace(/&lt;/g, "&amp;lt;")
-            .replace(/&gt;/g, "&amp;gt;")
-            .replace(/&quot;/g, "&amp;quot;")
-            .replace(/&#x27;/g, "&amp;#039;");
+            .replace(/</g, "&amp;lt;")
+            .replace(/>/g, "&amp;gt;")
+            .replace(/"/g, "&amp;quot;")
+            .replace(/'/g, "&#x27;");
     }
 
     function unescapeHtml(safe) {
@@ -428,7 +428,7 @@
             .replace(/&amp;lt;/g, "<")
             .replace(/&amp;gt;/g, ">")
             .replace(/&amp;quot;/g, "\"")
-            .replace(/&amp;#039;/g, "'");
+            .replace(/&#x27;/g, "'");
     }
 
     function saveToLocalStorage() {
@@ -799,23 +799,22 @@
             sendMessage();
         });
 
-        // Handle conversation item click for mobile
+        // Handle conversation item click for mobile and desktop
         $('#conversation-list').on('click', '.conversation-item', function() {
+            const conversationId = parseInt($(this).data('id'));
+
             if (isMobileDevice()) {
-                // If the clicked conversation already has 'show-actions', remove it (toggle off)
+                // Toggle the show-actions class for mobile
                 if ($(this).hasClass('show-actions')) {
                     $(this).removeClass('show-actions');
                 } else {
-                    // Remove 'show-actions' class from all conversations
                     $('.conversation-item').removeClass('show-actions');
-                    
-                    // Add 'show-actions' class to the clicked conversation
                     $(this).addClass('show-actions');
                 }
-            } else {
-                // Load the conversation on desktop
-                loadConversation(parseInt($(this).data('id')));
             }
+
+            // Load the conversation regardless of mobile or desktop
+            loadConversation(conversationId);
         });
 
         $('#conversation-list').on('click', '.rename-btn', function(e) {
