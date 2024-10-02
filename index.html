@@ -114,7 +114,7 @@
         .conversation-actions {
             display: none;
         }
-        .conversation-item:hover .conversation-actions {
+        .conversation-item.show-actions .conversation-actions {
             display: block;
         }
         #toggle-buttons {
@@ -406,20 +406,20 @@
 
     function escapeHtml(unsafe) {
         return unsafe
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
+            .replace(/&amp;/g, "&amp;amp;")
+            .replace(/&lt;/g, "&amp;lt;")
+            .replace(/&gt;/g, "&amp;gt;")
+            .replace(/&quot;/g, "&amp;quot;")
+            .replace(/&#x27;/g, "&amp;#039;");
     }
 
     function unescapeHtml(safe) {
         return safe
-            .replace(/&amp;/g, "&")
-            .replace(/&lt;/g, "<")
-            .replace(/&gt;/g, ">")
-            .replace(/&quot;/g, "\"")
-            .replace(/&#039;/g, "'");
+            .replace(/&amp;amp;/g, "&")
+            .replace(/&amp;lt;/g, "<")
+            .replace(/&amp;gt;/g, ">")
+            .replace(/&amp;quot;/g, "\"")
+            .replace(/&amp;#039;/g, "'");
     }
 
     function saveToLocalStorage() {
@@ -758,6 +758,11 @@
         }
     }
 
+    // Detect if the user is on a mobile device
+    function isMobileDevice() {
+        return /Mobi|Android/i.test(navigator.userAgent);
+    }
+
     function initializeApp() {
         loadFromLocalStorage();
         if (conversations.length === 0) {
@@ -785,20 +790,39 @@
             sendMessage();
         });
 
+        // Handle conversation item click for mobile
         $('#conversation-list').on('click', '.conversation-item', function() {
-            loadConversation(parseInt($(this).data('id')));
+            if (isMobileDevice()) {
+                // If the clicked conversation already has 'show-actions', remove it (toggle off)
+                if ($(this).hasClass('show-actions')) {
+                    $(this).removeClass('show-actions');
+                } else {
+                    // Remove 'show-actions' class from all conversations
+                    $('.conversation-item').removeClass('show-actions');
+                    
+                    // Add 'show-actions' class to the clicked conversation
+                    $(this).addClass('show-actions');
+                }
+            } else {
+                // Load the conversation on desktop
+                loadConversation(parseInt($(this).data('id')));
+            }
         });
+
         $('#conversation-list').on('click', '.rename-btn', function(e) {
             e.stopPropagation();
             renameConversation(parseInt($(this).closest('.conversation-item').data('id')));
         });
+
         $('#conversation-list').on('click', '.delete-btn', function(e) {
             e.stopPropagation();
             deleteConversation(parseInt($(this).closest('.conversation-item').data('id')));
         });
+
         $('#chat-container').on('click', '.copy-btn', function() {
             copyToClipboard(this);
         });
+
         $('#chat-container').on('click', '.regenerate-btn', function() {
             regenerateResponse(this);
         });
