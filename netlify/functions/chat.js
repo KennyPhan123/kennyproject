@@ -19,37 +19,22 @@ exports.handler = async function(event, context) {
         body: JSON.stringify({ credits: response.data.credits })
       };
     } else if (action === 'chat') {
-      return new Promise((resolve, reject) => {
-        axios.post('https://api.unify.ai/v0/chat/completions', {
-          model,
-          messages,
-          max_tokens,
-          temperature,
-          stream: true
-        }, {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${api_key}`
-          },
-          responseType: 'stream'
-        }).then(response => {
-          resolve({
-            statusCode: 200,
-            headers: {
-              'Content-Type': 'text/event-stream',
-              'Cache-Control': 'no-cache',
-              'Connection': 'keep-alive'
-            },
-            body: response.data
-          });
-        }).catch(error => {
-          console.error('Error:', error);
-          reject({
-            statusCode: error.response ? error.response.status : 500,
-            body: JSON.stringify({ error: error.message })
-          });
-        });
+      const response = await axios.post('https://api.unify.ai/v0/chat/completions', {
+        model,
+        messages,
+        max_tokens,
+        temperature
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${api_key}`
+        }
       });
+
+      return {
+        statusCode: 200,
+        body: JSON.stringify(response.data)
+      };
     } else {
       return {
         statusCode: 400,
@@ -57,7 +42,6 @@ exports.handler = async function(event, context) {
       };
     }
   } catch (error) {
-    console.error('Error:', error);
     return {
       statusCode: error.response ? error.response.status : 500,
       body: JSON.stringify({ error: error.message })
