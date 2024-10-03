@@ -19,41 +19,34 @@ exports.handler = async function(event, context) {
         body: JSON.stringify({ credits: response.data.credits })
       };
     } else if (action === 'chat') {
-      const response = await axios.post('https://api.unify.ai/v0/chat/completions', {
-        model,
-        messages,
-        max_tokens,
-        temperature,
-        stream: true
-      }, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${api_key}`
-        },
-        responseType: 'stream'
-      });
-
-      // Instead of returning the stream directly, we'll process it and return chunks
       return new Promise((resolve, reject) => {
-        let responseBody = '';
-        response.data.on('data', (chunk) => {
-          responseBody += chunk.toString();
-        });
-        response.data.on('end', () => {
+        axios.post('https://api.unify.ai/v0/chat/completions', {
+          model,
+          messages,
+          max_tokens,
+          temperature,
+          stream: true
+        }, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${api_key}`
+          },
+          responseType: 'stream'
+        }).then(response => {
           resolve({
             statusCode: 200,
             headers: {
-              'Content-Type': 'text/plain',
+              'Content-Type': 'text/event-stream',
               'Cache-Control': 'no-cache',
               'Connection': 'keep-alive'
             },
-            body: responseBody
+            body: response.data
           });
-        });
-        response.data.on('error', (err) => {
+        }).catch(error => {
+          console.error('Error:', error);
           reject({
-            statusCode: 500,
-            body: JSON.stringify({ error: 'Stream processing error' })
+            statusCode: error.response ? error.response.status : 500,
+            body: JSON.stringify({ error: error.message })
           });
         });
       });
