@@ -601,29 +601,44 @@
     }
 
     function editMessage(button) {
+        // Find the assistant's message div
         const assistantMessageDiv = $(button).closest('.message');
         const assistantMessageContent = assistantMessageDiv.find('pre').text();
 
+        // Find the user message div before the assistant message
         const userMessageDiv = assistantMessageDiv.prevAll('.message[data-role="user"]').first();
         const userMessageContent = userMessageDiv.find('pre').text();
 
+        // Put the original user message back into the input field
         $('#user-input').val(unescapeHtml(userMessageContent));
 
+        // Remove the assistant's message and all messages after it from conversation.messages
         const conversation = conversations.find(conv => conv.id === currentConversationId);
         if (conversation) {
-            const assistantIndex = conversation.messages.findIndex(msg => msg.role === 'assistant' && msg.content === assistantMessageContent);
+            // Find the index of the assistant's message in conversation.messages
+            const assistantIndex = conversation.messages.findIndex((msg, index) => {
+                return msg.role === 'assistant' && msg.content === assistantMessageContent;
+            });
+
             if (assistantIndex !== -1) {
-                conversation.messages.splice(assistantIndex, 1);
-            }
-            const userIndex = conversation.messages.findIndex(msg => msg.role === 'user' && msg.content === userMessageContent);
-            if (userIndex !== -1) {
-                conversation.messages.splice(userIndex, 1);
+                // Remove all messages from assistantIndex onward
+                conversation.messages.splice(assistantIndex);
+
+                // Save the updated conversation
+                saveToLocalStorage();
             }
         }
 
+        // Remove the assistant's message and all message divs after it from the UI
+        // Including the assistant's message div itself
+        assistantMessageDiv.nextAll('.message').remove();
         assistantMessageDiv.remove();
+
+        // Remove the user message div before the assistant message
         userMessageDiv.remove();
-        saveToLocalStorage();
+
+        // Scroll to the bottom of the chat container
+        $('#chat-container').scrollTop($('#chat-container')[0].scrollHeight);
     }
 
     function fetchCredits() {
