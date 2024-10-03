@@ -412,6 +412,9 @@
 
     let conversations = [];
     let currentConversationId = null;
+    let currentAbortController = null; // For Cancel Button
+    let editingConversationId = null; // For Edit Button
+    let editingUserMessageIndex = null; // For Edit Button
 
     // Corrected escapeHtml function
     function escapeHtml(unsafe) {
@@ -553,11 +556,12 @@
         const escapedContent = escapeHtml(content);
         const displayRole = role.toLowerCase() === 'user' ? 'You' : $('#model').val().split('@')[0];
         const messageHtml = `
-            <div class="message">
+            <div class="message" data-role="${role.toLowerCase()}">
                 <strong>${displayRole}:</strong>
                 <pre>${escapedContent}</pre>
                 ${role.toLowerCase() !== 'user' ? '<button class="copy-btn">Copy</button>' : ''}
                 ${role.toLowerCase() !== 'user' ? '<button class="regenerate-btn">Regenerate</button>' : ''}
+                ${role.toLowerCase() !== 'user' ? '<button class="edit-btn">Edit</button>' : ''}
             </div>
         `;
         $('#chat-container').append(messageHtml);
@@ -573,10 +577,31 @@
     }
 
     function regenerateResponse(button) {
-        const escapedUserMessage = $(button).closest('.message').prev().find('pre').text();
+        const $assistantMessage = $(button).closest('.message');
+        const $userMessage = $assistantMessage.prev('.message');
+
+        const escapedUserMessage = $userMessage.find('pre').text();
         const userMessage = unescapeHtml(escapedUserMessage);
-        $('#user-input').val(userMessage);
-        sendMessage(true);
+
+        // Find the conversation and message index
+        const conversation = conversations.find(conv => conv.id === currentConversationId);
+        if (!conversation) return;
+
+        const assistantMessageIndex = conversation.messages.findIndex(msg => msg.content === unescapeHtml($assistantMessage.find('pre').text()) && msg.role === 'assistant');
+
+        if (assistantMessageIndex > -1) {
+            const userMessageIndex = assistantMessageIndex - 1;
+            if (userMessageIndex >= 0) {
+                // Remove assistant message from conversation
+                conversation.messages.splice(assistantMessageIndex, 1);
+                // Remove assistant message from DOM
+                $assistantMessage.remove();
+
+                // Re-send the user message
+                $('#user-input').val(userMessage);
+                sendMessage(true);
+            }
+        }
     }
 
     function fetchCredits() {
@@ -627,6 +652,25 @@
             newConversation();
         }
 
+        // Handle editing state
+        if (editingConversationId != null && editingUserMessageIndex != null) {
+            var userMessageIndex = editingUserMessageIndex;
+            var conversation = conversations.find(conv => conv.id === editingConversationId);
+            var oldUserMessage = conversation.messages[userMessageIndex].content;
+            var oldAssistantMessage = conversation.messages[userMessageIndex + 1].content;
+
+            // Remove old messages from conversation
+            conversation.messages.splice(userMessageIndex, 2);
+
+            // Remove old messages from DOM
+            $('#chat-container .message').eq(userMessageIndex).remove(); // User message
+            $('#chat-container .message').eq(userMessageIndex).remove(); // Assistant message
+
+            // Reset editing state
+            editingConversationId = null;
+            editingUserMessageIndex = null;
+        }
+
         var apiKey = $('#api-key').val();
         var model = $('#model').val();
         var userMessage = $('#user-input').val();
@@ -639,9 +683,7 @@
             return;
         }
 
-        if (!isRegenerate) {
-            appendMessage('user', userMessage);
-        }
+        appendMessage('user', userMessage);
         $('#user-input').val('');
 
         const conversation = conversations.find(conv => conv.id === currentConversationId);
@@ -661,6 +703,13 @@
             }
         ];
 
+        // Initialize AbortController
+        currentAbortController = new AbortController();
+        const signal = currentAbortController.signal;
+
+        // Change Send button to Cancel
+        $('#send-button').text('Cancel').off('click').on('click', cancelSend);
+
         fetch('/.netlify/functions/chat', {
                 method: 'POST',
                 headers: {
@@ -673,7 +722,8 @@
                     messages: messages,
                     max_tokens: parseInt(maxTokens),
                     temperature: parseFloat(temperature)
-                })
+                }),
+                signal: signal // Attach the abort signal
             })
             .then(response => {
                 if (!response.ok) {
@@ -700,8 +750,21 @@
                 updateCreditsAfterResponse();
             })
             .catch(error => {
-                console.error('Error:', error);
-                appendMessage('Error', `An error occurred while fetching the response: ${error.message}`);
+                if (error.name === 'AbortError') {
+                    appendMessage('System', 'Response canceled.');
+                } else {
+                    console.error('Error:', error);
+                    appendMessage('Error', `An error occurred while fetching the response: ${error.message}`);
+                }
+            })
+            .finally(() => {
+                // Reset send button to "Send" and reattach the send handler
+                $('#send-button').text('Send').off('click').on('click', function(e) {
+                    e.preventDefault();
+                    sendMessage();
+                });
+
+                currentAbortController = null;
             });
     }
 
@@ -839,6 +902,32 @@
         $('#chat-container').on('click', '.regenerate-btn', function() {
             regenerateResponse(this);
         });
+
+        // Handle Edit button click
+        $('#chat-container').on('click', '.edit-btn', function() {
+            const $assistantMessage = $(this).closest('.message');
+            const $userMessage = $assistantMessage.prev('.message');
+
+            const escapedUserMessage = $userMessage.find('pre').text();
+            const userMessage = unescapeHtml(escapedUserMessage);
+
+            // Prefill the input field with the original user message
+            $('#user-input').val(userMessage);
+
+            // Identify the conversation and message indices
+            const conversation = conversations.find(conv => conv.id === currentConversationId);
+            if (!conversation) return;
+
+            const assistantMessageIndex = conversation.messages.findIndex(msg => msg.content === unescapeHtml($assistantMessage.find('pre').text()) && msg.role === 'assistant');
+
+            if (assistantMessageIndex > -1) {
+                const userMessageIndex = assistantMessageIndex - 1;
+                if (userMessageIndex >= 0) {
+                    editingConversationId = currentConversationId;
+                    editingUserMessageIndex = userMessageIndex;
+                }
+            }
+        });
     }
 
     $(document).ready(function() {
@@ -856,18 +945,6 @@
             e.stopPropagation();
             const conversationId = parseInt($(this).closest('.conversation-item').data('id'));
             deleteConversation(conversationId);
-        });
-
-        // Update click handler for conversation items
-        $('#conversation-list').on('click', '.conversation-item', function(e) {
-            const conversationId = parseInt($(this).data('id'));
-            loadConversation(conversationId);
-        });
-
-        // Handle actions button click (if using Option 2)
-        $('#conversation-list').on('click', '.actions-btn', function(e) {
-            e.stopPropagation();
-            $(this).siblings('.conversation-actions').toggle();
         });
     });
 </script>
