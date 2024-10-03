@@ -23,17 +23,24 @@ exports.handler = async function(event, context) {
         model,
         messages,
         max_tokens,
-        temperature
+        temperature,
+        stream: true
       }, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${api_key}`
-        }
+        },
+        responseType: 'stream'
       });
 
       return {
         statusCode: 200,
-        body: JSON.stringify(response.data)
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive'
+        },
+        body: response.data
       };
     } else {
       return {
