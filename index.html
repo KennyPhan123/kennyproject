@@ -612,17 +612,25 @@
         // Put the original user message back into the input field
         $('#user-input').val(unescapeHtml(userMessageContent));
 
-        // Remove the assistant's message and all messages after it from conversation.messages
+        // Remove the user message, assistant's message, and all messages after them from conversation.messages
         const conversation = conversations.find(conv => conv.id === currentConversationId);
         if (conversation) {
             // Find the index of the assistant's message in conversation.messages
-            const assistantIndex = conversation.messages.findIndex((msg, index) => {
+            const assistantIndex = conversation.messages.findIndex((msg) => {
                 return msg.role === 'assistant' && msg.content === assistantMessageContent;
             });
 
             if (assistantIndex !== -1) {
-                // Remove all messages from assistantIndex onward
-                conversation.messages.splice(assistantIndex);
+                // Find the index of the corresponding user message
+                const userIndex = assistantIndex - 1;
+
+                if (userIndex >= 0 && conversation.messages[userIndex].role === 'user') {
+                    // Remove all messages from the user message index onward
+                    conversation.messages.splice(userIndex);
+                } else {
+                    // If the user message isn't found, remove from the assistant's message
+                    conversation.messages.splice(assistantIndex);
+                }
 
                 // Save the updated conversation
                 saveToLocalStorage();
