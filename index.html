@@ -770,59 +770,43 @@
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
+            return response.text();
+        })
+        .then(data => {
+            const lines = data.split('\n');
             let aiMessage = '';
 
             appendMessage('assistant', '');
             const messageElement = $('#chat-container .message:last-child pre');
 
-            function readStream() {
-                reader.read().then(({ done, value }) => {
-                    if (done) {
-                        $('#send-button').text('Send');
-                        $('#user-input').prop('disabled', false);
-                        conversation.messages.push({
-                            role: 'assistant',
-                            content: aiMessage
-                        });
-                        updateConversationList();
-                        saveToLocalStorage();
-                        updateCreditsAfterResponse();
-                        abortController = null;
-                        return;
-                    }
-
-                    const chunk = decoder.decode(value);
-                    const lines = chunk.split('\n');
-                    lines.forEach(line => {
-                        if (line.startsWith('data: ')) {
-                            const jsonData = line.slice(6);
-                            if (jsonData !== '[DONE]') {
-                                try {
-                                    const parsedData = JSON.parse(jsonData);
-                                    const content = parsedData.choices[0].delta.content;
-                                    if (content) {
-                                        aiMessage += content;
-                                        messageElement.text(aiMessage);
-                                    }
-                                } catch (error) {
-                                    console.error('Error parsing JSON:', error);
-                                }
+            lines.forEach(line => {
+                if (line.startsWith('data: ')) {
+                    const jsonData = line.slice(6);
+                    if (jsonData !== '[DONE]') {
+                        try {
+                            const parsedData = JSON.parse(jsonData);
+                            const content = parsedData.choices[0].delta.content;
+                            if (content) {
+                                aiMessage += content;
+                                messageElement.text(aiMessage);
                             }
+                        } catch (error) {
+                            console.error('Error parsing JSON:', error);
                         }
-                    });
+                    }
+                }
+            });
 
-                    readStream();
-                }).catch(error => {
-                    console.error('Stream reading error:', error);
-                    $('#send-button').text('Send');
-                    $('#user-input').prop('disabled', false);
-                    abortController = null;
-                });
-            }
-
-            readStream();
+            $('#send-button').text('Send');
+            $('#user-input').prop('disabled', false);
+            conversation.messages.push({
+                role: 'assistant',
+                content: aiMessage
+            });
+            updateConversationList();
+            saveToLocalStorage();
+            updateCreditsAfterResponse();
+            abortController = null;
         })
         .catch(error => {
             $('#send-button').text('Send');

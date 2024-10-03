@@ -33,15 +33,30 @@ exports.handler = async function(event, context) {
         responseType: 'stream'
       });
 
-      return {
-        statusCode: 200,
-        headers: {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive'
-        },
-        body: response.data
-      };
+      // Instead of returning the stream directly, we'll process it and return chunks
+      return new Promise((resolve, reject) => {
+        let responseBody = '';
+        response.data.on('data', (chunk) => {
+          responseBody += chunk.toString();
+        });
+        response.data.on('end', () => {
+          resolve({
+            statusCode: 200,
+            headers: {
+              'Content-Type': 'text/plain',
+              'Cache-Control': 'no-cache',
+              'Connection': 'keep-alive'
+            },
+            body: responseBody
+          });
+        });
+        response.data.on('error', (err) => {
+          reject({
+            statusCode: 500,
+            body: JSON.stringify({ error: 'Stream processing error' })
+          });
+        });
+      });
     } else {
       return {
         statusCode: 400,
@@ -49,6 +64,7 @@ exports.handler = async function(event, context) {
       };
     }
   } catch (error) {
+    console.error('Error:', error);
     return {
       statusCode: error.response ? error.response.status : 500,
       body: JSON.stringify({ error: error.message })
