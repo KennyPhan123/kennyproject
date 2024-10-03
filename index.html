@@ -107,7 +107,7 @@
             white-space: pre-wrap;
             word-wrap: break-word;
         }
-        .copy-btn, .regenerate-btn {
+        .copy-btn, .regenerate-btn, .edit-btn {
             margin-left: 10px;
             cursor: pointer;
         }
@@ -338,7 +338,6 @@
         "llama-3.1-405b-chat@octoai",
         "llama-3.1-405b-chat@replicate",
         "llama-3.1-405b-chat@together-ai",
-        "llama-3.1-405b-chat@vertex-ai",
         "llama-3.1-70b-chat@aws-bedrock",
         "llama-3.1-70b-chat@azure-ai",
         "llama-3.1-70b-chat@deepinfra",
@@ -412,6 +411,7 @@
 
     let conversations = [];
     let currentConversationId = null;
+    let abortController = null;
 
     // Corrected escapeHtml function
     function escapeHtml(unsafe) {
@@ -552,14 +552,22 @@
     function appendMessage(role, content) {
         const escapedContent = escapeHtml(content);
         const displayRole = role.toLowerCase() === 'user' ? 'You' : $('#model').val().split('@')[0];
-        const messageHtml = `
-            <div class="message">
+
+        let messageHtml = `
+            <div class="message" data-role="${role}">
                 <strong>${displayRole}:</strong>
                 <pre>${escapedContent}</pre>
-                ${role.toLowerCase() !== 'user' ? '<button class="copy-btn">Copy</button>' : ''}
-                ${role.toLowerCase() !== 'user' ? '<button class="regenerate-btn">Regenerate</button>' : ''}
-            </div>
         `;
+
+        if (role.toLowerCase() !== 'user') {
+            messageHtml += `
+                <button class="copy-btn">Copy</button>
+                <button class="regenerate-btn">Regenerate</button>
+                <button class="edit-btn">Edit</button>
+            `;
+        }
+        messageHtml += `</div>`;
+
         $('#chat-container').append(messageHtml);
         $('#chat-container').scrollTop($('#chat-container')[0].scrollHeight);
     }
@@ -573,10 +581,49 @@
     }
 
     function regenerateResponse(button) {
-        const escapedUserMessage = $(button).closest('.message').prev().find('pre').text();
-        const userMessage = unescapeHtml(escapedUserMessage);
-        $('#user-input').val(userMessage);
-        sendMessage(true);
+        const assistantMessageDiv = $(button).closest('.message');
+        const assistantMessageContent = assistantMessageDiv.find('pre').text();
+
+        const userMessageDiv = assistantMessageDiv.prevAll('.message[data-role="user"]').first();
+        const userMessageContent = unescapeHtml(userMessageDiv.find('pre').text());
+
+        const conversation = conversations.find(conv => conv.id === currentConversationId);
+        if (conversation) {
+            const assistantIndex = conversation.messages.findIndex(msg => msg.role === 'assistant' && msg.content === assistantMessageContent);
+            if (assistantIndex !== -1) {
+                conversation.messages.splice(assistantIndex, 1);
+            }
+        }
+
+        assistantMessageDiv.remove();
+        saveToLocalStorage();
+        sendMessage(true, userMessageContent);
+    }
+
+    function editMessage(button) {
+        const assistantMessageDiv = $(button).closest('.message');
+        const assistantMessageContent = assistantMessageDiv.find('pre').text();
+
+        const userMessageDiv = assistantMessageDiv.prevAll('.message[data-role="user"]').first();
+        const userMessageContent = userMessageDiv.find('pre').text();
+
+        $('#user-input').val(unescapeHtml(userMessageContent));
+
+        const conversation = conversations.find(conv => conv.id === currentConversationId);
+        if (conversation) {
+            const assistantIndex = conversation.messages.findIndex(msg => msg.role === 'assistant' && msg.content === assistantMessageContent);
+            if (assistantIndex !== -1) {
+                conversation.messages.splice(assistantIndex, 1);
+            }
+            const userIndex = conversation.messages.findIndex(msg => msg.role === 'user' && msg.content === userMessageContent);
+            if (userIndex !== -1) {
+                conversation.messages.splice(userIndex, 1);
+            }
+        }
+
+        assistantMessageDiv.remove();
+        userMessageDiv.remove();
+        saveToLocalStorage();
     }
 
     function fetchCredits() {
@@ -622,14 +669,14 @@
         setTimeout(fetchCredits, 1000);
     }
 
-    function sendMessage(isRegenerate = false) {
+    function sendMessage(isRegenerate = false, userMessageParam = null) {
         if (!currentConversationId) {
             newConversation();
         }
 
         var apiKey = $('#api-key').val();
         var model = $('#model').val();
-        var userMessage = $('#user-input').val();
+        var userMessage = userMessageParam || $('#user-input').val();
         var maxTokens = $('#max-tokens').val();
         var temperature = $('#temperature').val();
         var systemPrompt = $('#system-prompt').val();
@@ -642,7 +689,15 @@
         if (!isRegenerate) {
             appendMessage('user', userMessage);
         }
-        $('#user-input').val('');
+        if (!userMessageParam) {
+            $('#user-input').val('');
+        }
+
+        $('#send-button').text('Cancel');
+        $('#user-input').prop('disabled', true);
+
+        abortController = new AbortController();
+        const signal = abortController.signal;
 
         const conversation = conversations.find(conv => conv.id === currentConversationId);
         if (!conversation) {
@@ -650,7 +705,19 @@
             return;
         }
 
-        const messages = [{
+        let messages;
+        if (isRegenerate && userMessageParam) {
+            messages = [{
+                "role": "system",
+                "content": systemPrompt
+            },
+            ...conversation.messages.filter(msg => msg.role !== 'assistant'),
+            {
+                "role": "user",
+                "content": userMessage
+            }];
+        } else {
+            messages = [{
                 "role": "system",
                 "content": systemPrompt
             },
@@ -658,51 +725,64 @@
             {
                 "role": "user",
                 "content": userMessage
-            }
-        ];
+            }];
+        }
 
         fetch('/.netlify/functions/chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    action: 'chat',
-                    api_key: apiKey,
-                    model: model,
-                    messages: messages,
-                    max_tokens: parseInt(maxTokens),
-                    temperature: parseFloat(temperature)
-                })
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            signal: signal,
+            body: JSON.stringify({
+                action: 'chat',
+                api_key: apiKey,
+                model: model,
+                messages: messages,
+                max_tokens: parseInt(maxTokens),
+                temperature: parseFloat(temperature)
             })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                const aiMessage = data.choices[0].message.content.trim();
-                appendMessage('assistant', aiMessage);
+        })
+        .then(response => {
+            $('#send-button').text('Send');
+            $('#user-input').prop('disabled', false);
 
-                if (!isRegenerate) {
-                    conversation.messages.push({
-                        role: 'user',
-                        content: userMessage
-                    });
-                }
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            const aiMessage = data.choices[0].message.content.trim();
+            appendMessage('assistant', aiMessage);
+
+            if (!isRegenerate) {
                 conversation.messages.push({
-                    role: 'assistant',
-                    content: aiMessage
+                    role: 'user',
+                    content: userMessage
                 });
-                updateConversationList();
-                saveToLocalStorage();
-                updateCreditsAfterResponse();
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                appendMessage('Error', `An error occurred while fetching the response: ${error.message}`);
+            }
+            conversation.messages.push({
+                role: 'assistant',
+                content: aiMessage
             });
+            updateConversationList();
+            saveToLocalStorage();
+            updateCreditsAfterResponse();
+            abortController = null;
+        })
+        .catch(error => {
+            $('#send-button').text('Send');
+            $('#user-input').prop('disabled', false);
+
+            if (error.name === 'AbortError') {
+                appendMessage('system', 'Request was canceled.');
+            } else {
+                console.error('Error:', error);
+                appendMessage('error', `An error occurred while fetching the response: ${error.message}`);
+            }
+            abortController = null;
+        });
     }
 
     function showConfigPopup() {
@@ -798,13 +878,21 @@
         $('#user-input').on('keydown', function (e) {
             if ((e.ctrlKey || e.shiftKey) && e.keyCode === 13) {
                 e.preventDefault();
-                sendMessage();
+                if ($('#send-button').text() === 'Send') {
+                    sendMessage();
+                }
             }
         });
 
         $('#send-button').on('click', function(e) {
             e.preventDefault();
-            sendMessage();
+            if ($(this).text() === 'Send') {
+                sendMessage();
+            } else if ($(this).text() === 'Cancel') {
+                if (abortController) {
+                    abortController.abort();
+                }
+            }
         });
 
         // Handle conversation item click for mobile and desktop
@@ -838,6 +926,10 @@
 
         $('#chat-container').on('click', '.regenerate-btn', function() {
             regenerateResponse(this);
+        });
+
+        $('#chat-container').on('click', '.edit-btn', function() {
+            editMessage(this);
         });
     }
 
